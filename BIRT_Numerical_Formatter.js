@@ -1,3 +1,5 @@
+/*jshint esversion: 6 */
+
 /*   
   BIRT Numerical Formatter
   v1.0 Matt Gracz -- 11/1/2021
@@ -14,8 +16,9 @@
    SCRIPT USAGE:
 
    Use case 1:
-   Sometimes BIRT's currency converstion algorithm for formatted display in data fields in the outline tab
-   straight up fails by displaying the inputted number entirely unformatted.
+   Sometimes BIRT's currency formatting algorithm for formatted display in data fields in the outline tab
+   straight up fails by displaying the inputted number entirely unformatted. E.g., 12345.3 should display as
+   $12,345.30 but it just displays as the original inputted number, 12345.3.
 
    In that case, change the corresponding data field's type to "String" and utilitize this code to do a 
    basic USD currency formatted display. If your currency isn't USD or if you need some other special unit,
@@ -64,7 +67,7 @@
 
             NOTE: padding sometimes improves BIRT's display of strings returned by the script
 
-   8. Repeat steps 4-7 for any other report elements who misbehave similarly.
+   8. Repeat steps 4-7 for any other data elements as needed.
 
 
  */
@@ -107,9 +110,9 @@ function convertToCommaFormat(in_s, leading_string, trailing_string, precision, 
                      precision == 0
               b) Set the string to .0*precision if:
                      number of decimal values present is 0 or no decimal point is present
-              c) Set the string to rhs+0*(precision-rhs.length) if:
+              c) Set the string to .rhs+0*(precision-rhs.length) if:
                      number of decimal values present < precision
-              d) Set the string to rhs[0,precision] if:
+              d) Set the string to .rhs[0,precision] if:
                      number of decimal values present > precision
               e) Set the string to the passed-in rhs, i.e., "do nothing" if:
                      number of decimal values present == precision
@@ -117,7 +120,7 @@ function convertToCommaFormat(in_s, leading_string, trailing_string, precision, 
     */
     var decimalPiece = "";
     if(precision > 0) {
-        var decimalPiece = (decIdx == -1 || decIdx == s.length-1) ? "0".repeat(precision) : s.substring(decIdx+1, decIdx+precision+1);
+        decimalPiece = (decIdx == -1 || decIdx == s.length-1) ? "0".repeat(precision) : s.substring(decIdx+1, decIdx+precision+1);
         if(decimalPiece.length < precision) {
           decimalPiece = decimalPiece + "0".repeat(precision - length);
         }
@@ -129,29 +132,27 @@ function convertToCommaFormat(in_s, leading_string, trailing_string, precision, 
 
     /* NOTE: padding sometimes improves BIRT's display of strings returned by the script */
     var finalString =  leading_string + withCommas + decimalPiece + trailing_string;
-    return padYesNo.toLowerCase() != "no" && (padYesNo || padYesNo.toLowerCase() == "yes") ? " " + finalString + " " : finalString;
+    var strPad = padYesNo.toString();
+    return strPad.toLowerCase() != "no" && (padYesNo || strPad.toLowerCase() == "yes") ? " " + finalString + " " : finalString;
 }
-
 function convertToDollars(in_s) { return convertToCommaFormat(in_s, "$ ", "", 2, true); }
-function convertToTrailingDollars(in_s) { return convertToCommaFormat(in_s, "", " $", 2, true)}
-function convertToPercent(in_s) { return convertToCommaFormat(in_s, "", "%", 2, true)}
+function convertToTrailingDollars(in_s) { return convertToCommaFormat(in_s, "", " $", 2, true);}
+function convertToPercent(in_s) { return convertToCommaFormat(in_s, "", "%", 2, true);}
 
 reportContext.setPersistentGlobalVariable("convertToCommaFormat", convertToCommaFormat);
-reportContext.setPersistentGlobalVariable("convertToCommaFormat", convertToDollars);
-reportContext.setPersistentGlobalVariable("convertToCommaFormat", convertToTrailingDollars);
+reportContext.setPersistentGlobalVariable("convertToDollars", convertToDollars);
+reportContext.setPersistentGlobalVariable("convertToTrailingDollars", convertToTrailingDollars);
+reportContext.setPersistentGlobalVariable("convertToPercent", convertToPercent);
 /* ================================================================================================ */
 /* ================================================================================================ */
 /* ================================================================================================ */
-
-
-
-
 
 
 /* FOR PROGRAMMER'S INTERESTS ONLY:
    Table of Contents:
    1) Unit Tests
    2) Methodology Justification
+*/
 
 /*  
    1) FOR TESTING IN AN EXTERNAL ENGINE:
@@ -160,24 +161,32 @@ reportContext.setPersistentGlobalVariable("convertToCommaFormat", convertToTrail
 
                 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map
  */
-var testSuite = [[convertToDollars, 1500.234," $ 1,500.23 "],
-                 [convertToDollars, 123345678.123," $ 123,345,678.12 "],
-                 [convertToDollars, 123," $ 123.00 "],
-                 [convertToDollars, 34.," $ 34.00 "],
-                 [convertToDollars, .893, " $ .89 "]
-                 [convertToDollars, 1456743980," $ 1,456,743,980.00 "],
-                 [convertToDollars, 458754.456," $ 458,754.45 "],
-                 [convertToTrailingDollars, 123.456," 123.45 $ "],
-                 [convertToTrailingDollars, 123.67," 123.67 $ "],
-                 [convertToTrailingDollars, 34.," 34.00 $ "],
-                 [convertToTrailingDollars, 4.04," 4.04 $ "],
-                 [convertToTrailingDollars, 3," 3.00 $ "],
-                 [convertToPercent, 4, " 4.00% "],
-                 [convertToPercent, 345.789, " 345.78% "],
-                 [convertToPercent, .312, " .312%"]
-                 [convertToPercent, 2., " 2.00% "]];
+function SingleTest(converter, rawInput, convertedStr) {
+  this.converter = converter;
+  this.rawInput = rawInput;
+  this.convertedStr = convertedStr;
+  this.convert = function () { return this.converter(this.rawInput); }
+  this.testMe = function() { return this.convert() == this.convertedStr; }
+}
 
-console.log(testSuite.map(test => test[0](test[1])==test[2]));
+var testSuite = [new SingleTest(convertToDollars, 1500.234," $ 1,500.23 "),
+                 new SingleTest(convertToDollars, 123345678.123," $ 123,345,678.12 "),
+                 new SingleTest(convertToDollars, 123," $ 123.00 "),
+                 new SingleTest(convertToDollars, 34.," $ 34.00 "),
+                 new SingleTest(convertToDollars, .893, " $ 0.89 "),
+                 new SingleTest(convertToDollars, 1456743980," $ 1,456,743,980.00 "),
+                 new SingleTest(convertToDollars, 458754.456," $ 458,754.45 "),
+                 new SingleTest(convertToTrailingDollars, 123.456," 123.45 $ "),
+                 new SingleTest(convertToTrailingDollars, 123.67," 123.67 $ "),
+                 new SingleTest(convertToTrailingDollars, 34.," 34.00 $ "),
+                 new SingleTest(convertToTrailingDollars, 4.04," 4.04 $ "),
+                 new SingleTest(convertToTrailingDollars, 3," 3.00 $ "),
+                 new SingleTest(convertToPercent, 4, " 4.00% "),
+                 new SingleTest(convertToPercent, 345.789, " 345.78% "),
+                 new SingleTest(convertToPercent, .312, " 0.31% "),
+                 new SingleTest(convertToPercent, 2., " 2.00% ")];
+
+console.log(testSuite.map(test => test.testMe()));
 
 /*
    2) An aside to fellow programmers:
