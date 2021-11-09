@@ -165,8 +165,8 @@ function SingleTest(converter, rawInput, convertedStr) {
   this.converter = converter;
   this.rawInput = rawInput;
   this.convertedStr = convertedStr;
-  this.convert = function () { return this.converter(this.rawInput); }
-  this.testMe = function() { return this.convert() == this.convertedStr; }
+  this.convert = function () { return this.converter(this.rawInput); };
+  this.testMe = function() { return this.convert() == this.convertedStr; };
 }
 
 var testSuite = [new SingleTest(convertToDollars, 1500.234," $ 1,500.23 "),
