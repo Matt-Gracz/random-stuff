@@ -59,7 +59,6 @@ logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(le
 
 ## Step 1: Get a list of the full paths to all the input files to process
 def retrieve_log_file_paths(directory):
-    ## Set conscruction:  {(d,f) | f in d: p substring f}, f=filename,d=directory name,p=filename pattern
     return [os.path.join(directory, f) for f in os.listdir(directory) if FILENAME_PATTERN in f]
 
 ## Step 2: Optionally delete the old output file to ensure stale
@@ -142,15 +141,6 @@ def clear_input_files(file_paths):
             except Exception as e:
                 logging.error(f'Error removing file {file_path}: {str(e)}')
         logging.info('Attempted to delete input files.')
-
-# Running the script from the command line
-# if __name__ == '__main__':
-#     log_file_paths = retrieve_log_file_paths(LOG_FILES_DIRECTORY)
-#     clear_output(os.path.join(LOG_FILES_DIRECTORY, OUTPUT_FILE_NAME))
-#     report_interactions_df = extract_report_interactions(log_file_paths)
-#     save_output_to_disk(report_interactions_df, os.path.join(LOG_FILES_DIRECTORY, OUTPUT_FILE_NAME))
-#     clear_input_files(log_file_paths)
-#     logging.info('Script execution completed.')
 
 # GUI
 # We use the tkinter library to develop the UI.
