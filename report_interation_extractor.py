@@ -1,27 +1,33 @@
 '''
-Title: AiM Report Interaction' ETL
+Title: AiM Report Interaction ETL
 Purpose: To track the relative volume of AiM user report interactions throughout the day
 Author :: Matt Gracz
 Initially developed in Spring/Summer of 2024.
-This code extracts AiM report interaction data from server log files, with each piece of interaction data defined
-as the act of an AiM user running a report via the report manager in AiM. We model a single run of a report as a tuple of
-(report_date, report_time, report_id), where report_date and report_time jointly represent when the report that maps
-to report_id was run.  We insert each interaction as a 4 column row with a PK of an auto incrementing int and an optional
-natural key of a combination of the report_id and report_date columns for quick sorting and aggregating once the table
-gets big enough.
+This code extracts AiM report interaction data from server log files, with each report interaction defined as the act of an AiM user running a report via the report manager in AiM. We model a single run of a report as a tuple:
+(report_date, report_time, report_id), where report_date and report_time represent jointly when the report that maps
+to report_id was run.  This script prepares for insertion into and formats the data it extracts for insertion as a 3 column row in a SQL database. I suggest employing an auto incrementing int as the PK.  It might be prudent to introduce a natural key of a combination of the report_id and report_date columns for quick sorting and aggregating once the table gets big enough.
 
 The selected data types for a MySQL 8.x warehouse for the three fields we are extracting from the logs are:
  -- report_date as a DATE data type
  -- report_time as a TIME data type
- -- report_id as a SMALLINT data type [small int ranges up to 32,000ish which will be more than enough for our report ID range]
+ -- report_id as a SMALLINT data type [small int ranges up to 32,000ish which will be more than enough for the usual AiM report ID range]
+
+********MAJOR LIMITATION: UW-Madison, where I work, cares only about one timezone that our datetimes are always in, so I lazily did not extract the timezone as part of the report_time column. If you want timezone info in the report_time column you'll need to modify the regex pattern and possibly the data type of the report_time column.********
+
+Issues:
+- 2024-06-04 :: logging in GUI mode doesn't print to the terminal. Not a big deal.  Backburner.
+- 2024-06-04 :: Write and comment out a timezone extraction regex for others to use.  Fix soon.
+
+
+Refer to here for the most up to date source file:
+https://github.com/Matt-Gracz/random-stuff/blob/main/report_interation_extractor.py
 '''
 
 # Imports
-import re   # we use regular expressions to process the logfile
-            # content, see bottom of the file for technical notes
+import re   # we use regular expressions to process the logfile content; see bottom of the file for technical notes
 from datetime import datetime # datetime module to help us format for storage in MySQL 8.x
 import pandas as pd # needed for data manipulation and persistence operations
-import logging # for sending debug and info output to a standard output stream'
+import logging # for sending debug and info output to a standard output stream
 import os # to help with file handling
 import traceback # for error handling
 
@@ -54,15 +60,13 @@ REGEX_PATTERN = r'\[([^\s]+).*?fmaxReportId=(\d+)'
 # Setup logging
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
 
-### Functions:: There is one function per major conceptual operation
-###             this script goes through.  See below for details
+### Functions:: There is one function per major conceptual operation this script goes through.  See below for details
 
 ## Step 1: Get a list of the full paths to all the input files to process
 def retrieve_log_file_paths(directory):
     return [os.path.join(directory, f) for f in os.listdir(directory) if FILENAME_PATTERN in f]
 
-## Step 2: Optionally delete the old output file to ensure stale
-## file deletion even if the ETL fails
+## Step 2: Optionally delete the old output file to ensure stale file deletion even if the ETL fails
 def clear_output(output_file):
     if CLEAR_OUTPUT_UPFRONT:
         try:
@@ -79,8 +83,7 @@ def clear_output(output_file):
                 logging.info('Stopping the script.')
                 exit()
 
-## Step 3: The actual ETL routine. Returns a pandas DataFrame containing one
-## row per report interaction to extract from the input files.
+## Step 3: The actual ETL routine. Returns a pandas DataFrame containing one row per report interaction to extract from the input files.
 def extract_report_interactions(file_paths):
     raw_interactions = [] # init in-memory the extracted raw data
     line_count = 0 # use this to track performance metrics
@@ -96,7 +99,7 @@ def extract_report_interactions(file_paths):
                     line_count += 1
                     matches = re.search(REGEX_PATTERN, line)
                     if matches and len(matches.groups()) == 2:
-                        raw_datetime_str, report_id = matches.groups() # this actually extracts the raw data
+                        raw_datetime_str, report_id = matches.groups() # this extracts the raw data
                         # Convert to datetime object
                         date_time_obj = datetime.strptime(raw_datetime_str, '%d/%b/%Y:%H:%M:%S')
                         # Extract date and time components and store them in 
@@ -111,18 +114,15 @@ def extract_report_interactions(file_paths):
                     logging.error(f'Error processing line: {str(e)}\nTraceback: {traceback.format_exc()}')
     
     elapsed_time = str(timedelta(seconds=time.time() - start_time))
-    # A note on some uncommon syntax in the formatted string:
-    # The signifier of a colon followed by a comma after a number,
-    # like line_count:, forces commas into big numbers being printed
-    # E.g., 10,000 instead of 10000
+    # A note on some uncommon syntax in the formatted string: The signifier of a colon followed by a comma after a an int or float, like line_count:, forces commas into big numbers being printed. E.g., 10,000 instead of 10000
     logging.info(f'Extracted {len(raw_interactions):,} report interactions from {line_count:,} lines in {elapsed_time}')
     return pd.DataFrame(raw_interactions, columns=['report_date', 'report_time', 'report_id'])
 
 ## Step 4: optionally persist the output to disk
-def save_output_to_disk(df, output_file):
+def save_output_to_disk(data_frame, output_file):
     if PERSIST_OUTPUT:
         try:
-            df.to_csv(output_file, index=False)
+            data_frame.to_csv(output_file, index=False)
             if os.path.exists(output_file):
                 logging.info('Output file successfully saved.')
             else:
@@ -130,7 +130,7 @@ def save_output_to_disk(df, output_file):
         except Exception as e:
             logging.error(f'Error saving CSV: {str(e)}, {traceback.format_exc()}')
 
-## Step 5: Optionally automatically clear out the input log files, since there can be a lot of them.
+## Step 5: Optionally clear out the input log files, since there can be a lot of them.
 def clear_input_files(file_paths):
     if CLEAR_INPUT_AFTER_SUCCESS:
         for file_path in file_paths:
@@ -143,8 +143,7 @@ def clear_input_files(file_paths):
         logging.info('Attempted to delete input files.')
 
 # GUI
-# We use the tkinter library to develop the UI.
-# It's mostly self explanatory.
+# We use the tkinter library to develop the UI. It's mostly self explanatory.
 class ETLApp:
     def __init__(self, root):
         self.root = root
@@ -168,6 +167,7 @@ class ETLApp:
     # This function sets up the entire user interface for display when the window is rendered
     def create_ui(self):
         row = 0 # the notion of rows/cols in a tkinter window are how elements are placed in a grid
+
         # Dynamically create UI elements for each parameter we want to expose.  Simply adjust the
         # instantiation of self.params if you want to modify that.
         for param, var in self.params.items():
@@ -230,8 +230,7 @@ class ETLApp:
 # ::::: Application Root :::::
 # There are two ways to run this script, both from command line:
 # 1. Headless mode | simply run the script
-# 2. GUI mode      | run the script with a -u or --ui option
-#                     e.g., %run report_interaction_extractor.py -u
+# 2. GUI mode      | run the script with a -u or --ui option. I.e., %run report_interaction_extractor.py -u
 
 def main():
     # Command-Line Argument Parsing
@@ -262,41 +261,41 @@ if __name__ == '__main__':
 r'''
 ::::: Documentation of the employment of regex in this script :::::
 
-Due to the textual nature of the logfile data, and therefore to ensure good performance and reliability of the data extraction,
-we employ a regex pattern to capture the datetime of when a given report was run along with its corresponding report ID:
+Due to the textual nature of the logfile data, and therefore to ensure good performance and reliability of the data extraction, we employ a regex pattern to capture the datetime of when a given report was run along with its corresponding report ID:
 
             \[([^\s]+).*?fmaxReportId=(\d+)
 
 Here's how it works:
 A regular expression, aka regex, is a special string, soemtimes referred to as a "pattern", that is "applied" to another
-string, called the input string, in order to extract a particular subset of the input string defined in the pattern. In our case, the input strings are each individual line of text in each server log file being scanned by the regex.  The pattern is designed to extract exactly and only the data we want (i.e., the report interaction data) from each log file.
+string, called the input string, in order to extract a particular subset of the input string defined in the pattern. In our case, the input strings are each individual line of text in each server log file being ingested by the script.  The pattern is designed to extract exactly and only the data we want (i.e., the report interaction data) from each log file.
 
-An important term in the regex world is 'capture group', which inside a regular expression pattern is any text inside a pair of parentheses.  The general form is ([sub_pattern]), where [sub_pattern] is any arbitrary substring of our regex pattern.  The parens indicate to the regex engine to 'capture' the part of the input string that matches the sub_pattern, precisely so that we can extract it as actual data later.  Each pair of parens is a different capture group, and you can have 0 to an arbitrary N number of capture groups in regex. In our case we have exactly two capture groups, to be clear.
+An important term in the regex world is 'capture group', which in a regular expression pattern is any text inside of a pair of parentheses.  The general form is ([sub_pattern]), where [sub_pattern] is any arbitrary substring of our regex pattern.  The abutting parentheses indicate to the regex engine to 'capture' the part of the input string that matches the sub_pattern, precisely so that we can extract it as actual data later.  Each pair of parens is a different capture group, and you can have 0 to an arbitrary N number of capture groups in regex. In our case we have exactly two capture groups, to be clear; the first group is the datetime of the report interaction and the second group is the report's ID.
 
 Breakdown of the Regex Expression:
 
                             Part 1: Capturing the date and time
                                         \[([^s]+) 
-This sub-pattern searches for an open bracket with \[ and then captures all non whitespace characters with [^s]+, since \s is the whitespace indicator, ^s is its negation, and + tells the engine to pick up as many character in a row as it can that match [^s]. Once it hits whitespace, i.e., the [^s] part of the pattern fails to match, it stops the capture group with a closed parens.  Notably the whitespace for us that it will stop on every time is the timezone.  Since we're always in CST, we can safely discard the white-space, thereby using it as our demarcater.
+This sub-pattern searches for the start of the datetime by looking for the first open bracket in the logfile line; it does so with this part of the pattern: \[ Next, the capture group starts with the open parenthesis, which then captures all of the next consecutive non whitespace characters with [^s]+  Breaking it down, \s is the whitespace indicator, and ^s is its negation. And + tells the engine to pick up as many characters in a row as it can that match [^s]. Once it hits whitespace, i.e., the [^s] part of the pattern fails to match, it stops the capture group with a closed parens.  Notably for our logfiles, the whitespace that it will stop on every time is the timezone.  Since we're always in CST, we can safely discard the white-space, thereby using it as our demarcater for our datetime data.  *****If you want timezone info in the report_time column you'll need to modify the regex pattern and possibly the data type of the report_time column*****
 
                     Part 2: Skipping over everything until we hit the actual report ID number
                                     .*?fmaxReportId=
-This sub-pattern skips over, i.e., doesn't capture/extract, all subsequent characters until it finds 'fmaxReportId='  The .*? is what skips over everything until it matches the 'fmaxReportId=' part of the pattern.  Note we don't put parens around the 'fmaxReportId=' portion, as it is not part of the actual report ID number and so we don't want it in the capture group.  But we must include it in order for the regex engine to know *where* to start the next capture group.
+This sub-pattern skips over, i.e., does not capture/extract, all characters subsequent to the datetime until it finds the substring 'fmaxReportId='  The .*? is what skips over everything until it matches the 'fmaxReportId=' part of the pattern.  Note we don't put parens around the 'fmaxReportId=' portion, because although we are looking for it in the input string, it is not part of the actual report ID number and so we don't want it in the capture group.  But we must include it in the regex pattern regardless, in order for the regex engine to know *where* in the input string to start capturing the reportID.
 
                             Part 3: Capturing the report ID
                                           (\d+)
-This sub-pattern captures into the second capture group all the next digits that appear after the equals sign from the previous sub-pattern, i.e., the report ID we're after. It stops capturing once it hits a non-digit, i.e., the end of the report ID substring.  The rest of the line in the logfile is ignored, which is implied simply by the regex pattern terninating at this second capture group.
+This sub-pattern captures into the second capture group all the next digits that appear after the equals sign from the previous sub-pattern, i.e., the report ID we're after. \d stands for "digit" and the + again signifies to capture as many digits in a row as the regex engine can. It stops capturing once it hits a non-digit, i.e., the end of the report ID substring.  The rest of the line in the logfile is ignored, which is implied simply by the regex pattern terninating at this second capture group.
       
 Real World Example:
 Recall our regex pattern is:
     \[([^\s]+).*?fmaxReportId=(\d+)
 
-If we consider the following real world example input string:
+Consider the following real world example input string:
     [01/Jan/2023:14:20:00 -0600] - [omitted]__fmaxDocId=9927EEDE-BB80-4906-9DAF-DC415783A2D8&__fmaxReportId=1099&DateSelector=LastMonth
 
-Then when we apply our regex pattern to that input string, we would expect '01/Jan/2023:14:20:00' to be the value of the
-first capture group and '1099' to be the value of the second capture group.  You can identify these substrings in the
-input string and then compare against the regex pattern to get a visual idea of how it works.  Ask me if you have questions.
+When we apply our regex pattern to that input string, we would expect '01/Jan/2023:14:20:00' to be the raw value of the
+first capture group and '1099' to be the raw value of the second capture group.  You can identify these substrings in the input string and then compare against the regex pattern to get a visual idea of how it works.  Ask me if you have questions.
   
       -Matt G, Spring/Summer 2024
+      [m][a][t][t][dot][g][r][a][c][z] -- gmail
+
 '''
