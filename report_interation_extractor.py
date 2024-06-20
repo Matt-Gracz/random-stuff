@@ -55,7 +55,7 @@ HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in h
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 
 # Note to reader: Documentation for this regex pattern is at the bottom of this python file
-REGEX_PATTERN = r'\[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)' #r'\[([^\s]+).*?fmaxReportId=(\d+)' 
+REGEX_PATTERN = r'\[([^:]+):([^ ]+)\s([^\]]+).*?fmaxReportId=(\d+)' #r'\[([^\s]+).*?fmaxReportId=(\d+)' 
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
@@ -100,15 +100,14 @@ def extract_report_interactions(file_paths):
                     matches = re.search(REGEX_PATTERN, line)
                     if matches and len(matches.groups()) == 4:
                         date_str, time_str, timezone, report_id = matches.groups() # this extracts the raw data
-                        
-                        # Convert to datetime object
-                        report_date = datetime.strptime(date_str, '%d/%b/%Y').strftime('%Y-%m-%d')
-                        report_time = datetime.strptime(time_str, ':')
+                        print(date_str, time_str, timezone, report_id)
                         # Extract date and time components and store them in 
-                        # a MySQL 8.x friendly format.  Also save the report_id
-                        report_date = date_time_obj.strftime('%Y-%m-%d')
-                        report_time = date_time_obj.strftime('%H:%M:%S')
-                        raw_interactions.append([report_date, report_time, report_id])
+                        # a MySQL 8.x friendly format.
+                        report_date = datetime.strptime(date_str, '%d/%b/%Y').strftime('%Y-%m-%d')
+                        report_time = datetime.strptime(time_str, '%H:%M:%S').strftime('%H:%M:%S')
+                        report_timezone = timezone.strip() # lop off any whitespace; otherwise we just want it as a raw string
+                        # report_id doesn't need to be cast to int since we're saving to CSV
+                        raw_interactions.append([report_date, report_time, report_timezone, report_id])
                         if DEBUG:
                             logging.debug(f'Extracted: {report_date}, {report_time}, {report_id}')
                         debug_loop += 1
@@ -118,7 +117,7 @@ def extract_report_interactions(file_paths):
     elapsed_time = str(timedelta(seconds=time.time() - start_time))
     # A note on some uncommon syntax in the formatted string: The signifier of a colon followed by a comma after a an int or float, like line_count:, forces commas into big numbers being printed. E.g., 10,000 instead of 10000
     logging.info(f'Extracted {len(raw_interactions):,} report interactions from {line_count:,} lines in {elapsed_time}')
-    return pd.DataFrame(raw_interactions, columns=['report_date', 'report_time', 'report_id'])
+    return pd.DataFrame(raw_interactions, columns=['report_date', 'report_time', 'report_timezone', 'report_id'])
 
 ## Step 4: optionally persist the output to disk
 def save_output_to_disk(data_frame, output_file):
