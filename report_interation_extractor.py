@@ -10,9 +10,9 @@ to report_id was run.  This script prepares for insertion into and formats the d
 The selected data types for a MySQL 8.x warehouse for the three fields we are extracting from the logs are:
  -- report_date as a DATE data type
  -- report_time as a TIME data type
+ -- report_timezone as a VARCHAR data type
  -- report_id as a SMALLINT data type [small int ranges up to 32,000ish which will be more than enough for the usual AiM report ID range]
 
-********MAJOR LIMITATION: UW-Madison, where I work, cares only about one timezone that our datetimes are always in, so I lazily did not extract the timezone as part of the report_time column. If you want timezone info in the report_time column you'll need to modify the regex pattern and possibly the data type of the report_time column.********
 
 Issues:
 - 2024-06-04 :: logging in GUI mode doesn't print to the terminal. Not a big deal.  Backburner.
@@ -55,7 +55,7 @@ HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in h
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 
 # Note to reader: Documentation for this regex pattern is at the bottom of this python file
-REGEX_PATTERN = r'\[([^\s]+).*?fmaxReportId=(\d+)' 
+REGEX_PATTERN = r'\[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)' #r'\[([^\s]+).*?fmaxReportId=(\d+)' 
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
@@ -98,10 +98,12 @@ def extract_report_interactions(file_paths):
                 try:
                     line_count += 1
                     matches = re.search(REGEX_PATTERN, line)
-                    if matches and len(matches.groups()) == 2:
-                        raw_datetime_str, report_id = matches.groups() # this extracts the raw data
+                    if matches and len(matches.groups()) == 4:
+                        date_str, time_str, timezone, report_id = matches.groups() # this extracts the raw data
+                        
                         # Convert to datetime object
-                        date_time_obj = datetime.strptime(raw_datetime_str, '%d/%b/%Y:%H:%M:%S')
+                        report_date = datetime.strptime(date_str, '%d/%b/%Y').strftime('%Y-%m-%d')
+                        report_time = datetime.strptime(time_str, ':')
                         # Extract date and time components and store them in 
                         # a MySQL 8.x friendly format.  Also save the report_id
                         report_date = date_time_obj.strftime('%Y-%m-%d')
@@ -257,6 +259,43 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+r'''
+::::: Documentation of the employment of regex in this script :::::
+
+Due to the textual nature of the logfile data, and therefore to ensure good performance and reliability of the data extraction, we employ a regex pattern to capture the datetime of when a given report was run along with its corresponding report ID.  The regex pattern is:
+
+                    \[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)
+
+An important term in the regex world is 'capture group', which in a regular expression pattern is any text inside of a pair of parentheses.  The general form is ([sub_pattern]), where [sub_pattern] is any arbitrary substring of our regex pattern.  The parentheses indicate to the regex engine to 'capture' the part of the input string that matches the sub_pattern, precisely so that we can use it as actual data later.  Each pair of parens is a different capture group, and you can have 0 to an arbitrary N number of capture groups in regex. In our case we have exactly four capture groups: the first group captures the date of the user's interaction with the report, the second is the time of interaction, the third is the timezone, and the fourth is the ID of the report being interacted with.
+
+What follows is an explanation of how this all works, by explaining each piece of the pattern in turn:
+
+                            Piece 1: Capturing the date of report interaction
+                                        \[([^:]+)
+The escaped bracket at the beggining of the pattern, \[, finds the bracket in the logfile line that directly precedes the date.  ([^:]+) can be read as "capture all characters that aren't a colon until you find a colon"  The reason we do this is the colon separates the date from the time in the logfile string. The brackets [] stipulate to capture multiple characters in a row, the caret ^ negates the colon and the + tells it to find as many characters as it can that match the subpattern (i.e., characters that aren't colons) until it finds a colon.
+
+                            Piece 2: Capturing the time
+                                        :([^s]+)
+Similarly to the date being preceded by an open bracket, we know the time will be differentiated from the date by a colon, so we place the colon outside of the parens to denote where to start capturing. ([^s]+) is exactly the same logic as above, but the negation is applying to whitespace instead of a colon.  This means the regex engine will capture everything that is not whitepspace until it hits a space, which demarcates where the timezone starts.
+
+                            Piece 3: Capturing the timezone
+                                        \s([^\]]+)
+Similarly to the time being preceded by a colon, we know the timezone will be differentiated from the time by a space, so we don't include that space in the parens as we don't need to capture it, but we need to tell the regex engine where to start the next capture group, which is after the space. \s([^\]]+) is exactly the same logic as above, but the negation is applying to a closed bracket instead of a colon.  This means the regex engine will capture everything that is not a closed bracket until it hits the closed bracket that delineates the end of the datetime substring, and therefore the end of the timezone.
+
+                            Piece 4: Skipping everything until the Report ID:
+                                        .*?fmaxReportId=
+With no parens in this part of the regex pattern we are simlpy instructing the regex engine to skip over all the characters that match the pattern.  In this case we skip over everything until we hit fmaxReportId= which we also don't capture but spelling out fmaxReportId= allows the regex engine to start the next capture group in the right spot.
+
+                            Piece 5: Capturing the Report ID
+                                        (\d+)
+This sub-pattern captures into the second capture group all the next digits that appear after the equals sign from the previous sub-pattern, i.e., the report ID we're after. \d stands for "digit" and the + again signifies to capture as many digits in a row as the regex engine can. It stops capturing once it hits a non-digit, i.e., the end of the report ID substring.  The rest of the line in the logfile is ignored, which is implied simply by the regex pattern terninating at this second capture group.
+
+'''
+
+#### OLD DOCS
+
 
 r'''
 ::::: Documentation of the employment of regex in this script :::::
