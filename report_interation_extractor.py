@@ -149,6 +149,7 @@ class ETLApp:
     def __init__(self, root):
         self.root = root
         self.root.title('AiM Report interaction ETL')
+        self.root.iconbitmap('etl_icon.ico')
 
         # Parameters to expose to the UI
         self.params = {
