@@ -269,77 +269,77 @@ if __name__ == '__main__':
 r'''
 ::::: Documentation of the employment of regex in this script :::::
 
-Due to the textual nature of the logfile data, and therefore to ensure good performance and reliability of the data extraction, we employ a regex pattern to capture the datetime of when a given report was run along with its corresponding report ID.  The regex pattern is:
+Due to the textual nature of the logfile data, and therefore to ensure
+good performance and reliability of the data extraction, we employ a
+regex pattern to capture the datetime of when a given report was run,
+along with its corresponding report ID.  The regex pattern is:
 
-                    \[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)
+            \[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)
 
-An important term in the regex world is 'capture group', which in a regular expression pattern is any text inside of a pair of parentheses.  The general form is ([sub_pattern]), where [sub_pattern] is any arbitrary substring of our regex pattern.  The parentheses indicate to the regex engine to 'capture' the part of the input string that matches the sub_pattern, precisely so that we can use it as actual data later.  Each pair of parens is a different capture group, and you can have 0 to an arbitrary N number of capture groups in regex. In our case we have exactly four capture groups: the first group captures the date of the user's interaction with the report, the second is the time of interaction, the third is the timezone, and the fourth is the ID of the report being interacted with.
+An important term in the regex world is 'capture group', which in a
+regular expression pattern is any text inside of a pair of parentheses.
+The general form is ([sub_pattern]), where [sub_pattern] is any arbitrary
+substring of our regex pattern.  The parentheses indicate to the regex
+engine to 'capture' the part of the input string that matches the sub_pattern,
+precisely so that we can use it as actual data later.  Each pair of parens
+is a different capture group, and you can have 0 to an arbitrary N number
+of capture groups in regex. In our case we have exactly four capture groups:
+the first group captures the date of the user's interaction with the report,
+the second is the time of interaction, the third is the timezone, and
+the fourth is the ID of the report being interacted with.
 
-What follows is an explanation of how this all works, by explaining each piece of the pattern in turn:
+What follows is an explanation of how this all works, by explaining each
+piece of the pattern in turn, going left to right in the pattern:
 
-                            Piece 1: Capturing the date of report interaction
-                                        \[([^:]+)
-The escaped bracket at the beggining of the pattern, \[, finds the bracket in the logfile line that directly precedes the date.  ([^:]+) can be read as "capture all characters that aren't a colon until you find a colon"  The reason we do this is the colon separates the date from the time in the logfile string. The brackets [] stipulate to capture multiple characters in a row, the caret ^ negates the colon and the + tells it to find as many characters as it can that match the subpattern (i.e., characters that aren't colons) until it finds a colon.
+                Piece 1: Capturing the date of report interaction
+                            \[([^:]+)
+The escaped bracket at the beggining of the pattern, \[, finds the
+bracket in the logfile line that directly precedes the date.  ([^:]+) can be
+read as "capture all characters that aren't a colon until you find a colon"
+The reason we do this is the colon separates the date from the time in the
+logfile string. The brackets [] stipulate to capture multiple characters
+in a row, the caret ^ negates the colon and the + tells it to find as
+many characters as it can that match the subpattern (i.e., characters 
+that aren't colons) until it finds a colon.
 
-                            Piece 2: Capturing the time
-                                        :([^s]+)
-Similarly to the date being preceded by an open bracket, we know the time will be differentiated from the date by a colon, so we place the colon outside of the parens to denote where to start capturing. ([^s]+) is exactly the same logic as above, but the negation is applying to whitespace instead of a colon.  This means the regex engine will capture everything that is not whitepspace until it hits a space, which demarcates where the timezone starts.
+                Piece 2: Capturing the time
+                            :([^s]+)
+Similarly to the date being preceded by an open bracket, we know the
+time will be differentiated from the date by a colon, so we place the
+colon outside of the parens to denote where to start capturing. ([^s]+) is
+exactly the same logic as above, but the negation is applying to whitespace
+instead of a colon.  This means the regex engine will capture everything
+that is not whitepspace until it hits a space, which demarcates where
+the timezone starts.
 
-                            Piece 3: Capturing the timezone
-                                        \s([^\]]+)
-Similarly to the time being preceded by a colon, we know the timezone will be differentiated from the time by a space, so we don't include that space in the parens as we don't need to capture it, but we need to tell the regex engine where to start the next capture group, which is after the space. \s([^\]]+) is exactly the same logic as above, but the negation is applying to a closed bracket instead of a colon.  This means the regex engine will capture everything that is not a closed bracket until it hits the closed bracket that delineates the end of the datetime substring, and therefore the end of the timezone.
+                Piece 3: Capturing the timezone
+                            \s([^\]]+)
+Similarly to the time being preceded by a colon, we know the timezone
+will be differentiated from the time by a space, so we don't include
+that space in the parens as we don't need to capture it, but we need
+to tell the regex engine where to start the next capture group, which
+is after the space. \s([^\]]+) is exactly the same logic as above, but
+the negation is applying to a closed bracket instead of a colon.  This
+means the regex engine will capture everything that is not a closed
+bracket until it hits the closed bracket that delineates the end of the
+datetime substring, and therefore the end of the timezone.
 
-                            Piece 4: Skipping everything until the Report ID:
-                                        .*?fmaxReportId=
-With no parens in this part of the regex pattern we are simlpy instructing the regex engine to skip over all the characters that match the pattern.  In this case we skip over everything until we hit fmaxReportId= which we also don't capture but spelling out fmaxReportId= allows the regex engine to start the next capture group in the right spot.
+                Piece 4: Skipping everything until the Report ID:
+                            .*?fmaxReportId=
+With no parens in this part of the regex pattern we are simlpy instructing
+the regex engine to skip over all the characters that match the pattern. 
+In this case we skip over everything until we hit fmaxReportId= which we
+also don't capture but spelling out fmaxReportId= allows the regex engine
+to start the next capture group in the right spot.
 
-                            Piece 5: Capturing the Report ID
-                                        (\d+)
-This sub-pattern captures into the second capture group all the next digits that appear after the equals sign from the previous sub-pattern, i.e., the report ID we're after. \d stands for "digit" and the + again signifies to capture as many digits in a row as the regex engine can. It stops capturing once it hits a non-digit, i.e., the end of the report ID substring.  The rest of the line in the logfile is ignored, which is implied simply by the regex pattern terninating at this second capture group.
-
-'''
-
-#### OLD DOCS
-
-
-r'''
-::::: Documentation of the employment of regex in this script :::::
-
-Due to the textual nature of the logfile data, and therefore to ensure good performance and reliability of the data extraction, we employ a regex pattern to capture the datetime of when a given report was run along with its corresponding report ID:
-
-            \[([^\s]+).*?fmaxReportId=(\d+)
-
-Here's how it works:
-A regular expression, aka regex, is a special string, soemtimes referred to as a "pattern", that is "applied" to another
-string, called the input string, in order to extract a particular subset of the input string defined in the pattern. In our case, the input strings are each individual line of text in each server log file being ingested by the script.  The pattern is designed to extract exactly and only the data we want (i.e., the report interaction data) from each log file.
-
-An important term in the regex world is 'capture group', which in a regular expression pattern is any text inside of a pair of parentheses.  The general form is ([sub_pattern]), where [sub_pattern] is any arbitrary substring of our regex pattern.  The abutting parentheses indicate to the regex engine to 'capture' the part of the input string that matches the sub_pattern, precisely so that we can extract it as actual data later.  Each pair of parens is a different capture group, and you can have 0 to an arbitrary N number of capture groups in regex. In our case we have exactly two capture groups, to be clear; the first group is the datetime of the report interaction and the second group is the report's ID.
-
-Breakdown of the Regex Expression:
-
-                            Part 1: Capturing the date and time
-                                        \[([^s]+) 
-This sub-pattern searches for the start of the datetime by looking for the first open bracket in the logfile line; it does so with this part of the pattern: \[ Next, the capture group starts with the open parenthesis, which then captures all of the next consecutive non whitespace characters with [^s]+  Breaking it down, \s is the whitespace indicator, and ^s is its negation. And + tells the engine to pick up as many characters in a row as it can that match [^s]. Once it hits whitespace, i.e., the [^s] part of the pattern fails to match, it stops the capture group with a closed parens.  Notably for our logfiles, the whitespace that it will stop on every time is the timezone.  Since we're always in CST, we can safely discard the white-space, thereby using it as our demarcater for our datetime data.  *****If you want timezone info in the report_time column you'll need to modify the regex pattern and possibly the data type of the report_time column*****
-
-                    Part 2: Skipping over everything until we hit the actual report ID number
-                                    .*?fmaxReportId=
-This sub-pattern skips over, i.e., does not capture/extract, all characters subsequent to the datetime until it finds the substring 'fmaxReportId='  The .*? is what skips over everything until it matches the 'fmaxReportId=' part of the pattern.  Note we don't put parens around the 'fmaxReportId=' portion, because although we are looking for it in the input string, it is not part of the actual report ID number and so we don't want it in the capture group.  But we must include it in the regex pattern regardless, in order for the regex engine to know *where* in the input string to start capturing the reportID.
-
-                            Part 3: Capturing the report ID
-                                          (\d+)
-This sub-pattern captures into the second capture group all the next digits that appear after the equals sign from the previous sub-pattern, i.e., the report ID we're after. \d stands for "digit" and the + again signifies to capture as many digits in a row as the regex engine can. It stops capturing once it hits a non-digit, i.e., the end of the report ID substring.  The rest of the line in the logfile is ignored, which is implied simply by the regex pattern terninating at this second capture group.
-      
-Real World Example:
-Recall our regex pattern is:
-    \[([^\s]+).*?fmaxReportId=(\d+)
-
-Consider the following real world example input string:
-    [01/Jan/2023:14:20:00 -0600] - [omitted]__fmaxDocId=9927EEDE-BB80-4906-9DAF-DC415783A2D8&__fmaxReportId=1099&DateSelector=LastMonth
-
-When we apply our regex pattern to that input string, we would expect '01/Jan/2023:14:20:00' to be the raw value of the
-first capture group and '1099' to be the raw value of the second capture group.  You can identify these substrings in the input string and then compare against the regex pattern to get a visual idea of how it works.  Ask me if you have questions.
-  
-      -Matt G, Spring/Summer 2024
-      [m][a][t][t][dot][g][r][a][c][z] -- gmail
+                Piece 5: Capturing the Report ID
+                            (\d+)
+This sub-pattern captures into the second capture group all the next
+digits that appear after the equals sign from the previous sub-pattern,
+i.e., the report ID we're after. \d stands for "digit" and the + again
+signifies to capture as many digits in a row as the regex engine can.
+It stops capturing once it hits a non-digit, i.e., the end of the report
+ID substring.  The rest of the line in the logfile is ignored, which is
+implied simply by the regex pattern terninating at this second capture group.
 
 '''
