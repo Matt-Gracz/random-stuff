@@ -16,11 +16,10 @@ The selected data types for a MySQL 8.x warehouse for the three fields we are ex
 
 Issues:
 - 2024-06-04 :: logging in GUI mode doesn't print to the terminal. Not a big deal.  Backburner.
-- 2024-06-04 :: Write and comment out a timezone extraction regex for others to use.  Fix soon.
 
 
-Refer to here for the most up to date source file:
-https://github.com/Matt-Gracz/random-stuff/blob/main/report_interation_extractor.py
+Refer to here for the most up to date source files:
+https://github.com/Matt-Gracz/random-stuff/tree/main/aim_report_interaction_extractor
 '''
 
 # Imports
@@ -30,6 +29,7 @@ import pandas as pd # needed for data manipulation and persistence operations
 import logging # for sending debug and info output to a standard output stream
 import os # to help with file handling
 import traceback # for error handling
+import json # to read in the config file
 
 ##### for performance testing this script
 import time 
@@ -42,20 +42,25 @@ from tkinter import messagebox, scrolledtext
 import argparse
 #####
 
+# Application Config
+config = None
+with open('_report_interaction_etl_config.json', 'r') as config_file:
+    config = json.load(config_file)
+DEBUG = config["DEBUG"] # Only enable when debugging, obviously
+DEBUG_LOOP_MAX = config["DEBUG_LOOP_MAX"] # max extraction loops to run before bailing manually
+CLEAR_OUTPUT_UPFRONT = config["CLEAR_OUTPUT_UPFRONT"] # remove old output file from last ETL run
+CLEAR_INPUT_AFTER_SUCCESS = config["CLEAR_INPUT_AFTER_SUCCESS"] # clear out the logs so they don't build up in the input dir
+PERSIST_OUTPUT = config["PERSIST_OUTPUT"] # Save the output to disk; only set to false if debugging.
+LOG_FILES_DIRECTORY = 'LOG_FILES_DIRECTORY' # Where the AiM log files are stored
+OUTPUT_FILE_NAME = config["OUTPUT_FILE_NAME"] # Stores the ETL'd data
+FILENAME_PATTERN = config["FILENAME_PATTERN"] # The substring of a filename that denotes an AiM log file
+
 # Constants
-DEBUG = False # Only enable when debugging, obviously
-DEBUG_LOOP_MAX = 50 # max extraction loops to run before bailing manually
-CLEAR_OUTPUT_UPFRONT = True # remove old output file from last ETL run
-CLEAR_INPUT_AFTER_SUCCESS = True # clear out the logs so they don't build up in the input dir
-PERSIST_OUTPUT = True # Save the output to disk; only set to false if debugging.
-LOG_FILES_DIRECTORY = './' # Where the AiM log files are stored
-OUTPUT_FILE_NAME = 'report_interactions.csv' # Stores the ETL'd data
-FILENAME_PATTERN = 'localhost_access_log' # The substring of a filename that denotes an AiM log file
 HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in headless mode
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
-
 # Note to reader: Documentation for this regex pattern is at the bottom of this python file
 REGEX_PATTERN = r'\[([^:]+):([^ ]+)\s([^\]]+).*?fmaxReportId=(\d+)' #r'\[([^\s]+).*?fmaxReportId=(\d+)' 
+REGEX_PATTERN = r'\[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)'
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
