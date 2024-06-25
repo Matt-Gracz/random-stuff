@@ -51,7 +51,7 @@ DEBUG_LOOP_MAX = config["DEBUG_LOOP_MAX"] # max extraction loops to run before b
 CLEAR_OUTPUT_UPFRONT = config["CLEAR_OUTPUT_UPFRONT"] # remove old output file from last ETL run
 CLEAR_INPUT_AFTER_SUCCESS = config["CLEAR_INPUT_AFTER_SUCCESS"] # clear out the logs so they don't build up in the input dir
 PERSIST_OUTPUT = config["PERSIST_OUTPUT"] # Save the output to disk; only set to false if debugging.
-LOG_FILES_DIRECTORY = 'LOG_FILES_DIRECTORY' # Where the AiM log files are stored
+LOG_FILES_DIRECTORY = config['LOG_FILES_DIRECTORY'] # Where the AiM log files are stored
 OUTPUT_FILE_NAME = config["OUTPUT_FILE_NAME"] # Stores the ETL'd data
 FILENAME_PATTERN = config["FILENAME_PATTERN"] # The substring of a filename that denotes an AiM log file
 
