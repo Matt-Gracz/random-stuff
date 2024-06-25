@@ -127,6 +127,7 @@ def extract_report_interactions(file_paths):
 def save_output_to_disk(data_frame, output_file):
     if PERSIST_OUTPUT:
         try:
+            # index=False means it won't persist an extra column with integer indexes.  We don't need them.
             data_frame.to_csv(output_file, index=False)
             if os.path.exists(output_file):
                 logging.info('Output file successfully saved.')
