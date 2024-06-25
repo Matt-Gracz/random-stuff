@@ -59,8 +59,11 @@ FILENAME_PATTERN = config["FILENAME_PATTERN"] # The substring of a filename that
 HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in headless mode
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 # Note to reader: Documentation for this regex pattern is at the bottom of this python file
+<<<<<<< Updated upstream:aim_report_interaction_extractor/report_interation_extractor.py
 REGEX_PATTERN = r'\[([^:]+):([^ ]+)\s([^\]]+).*?fmaxReportId=(\d+)' #r'\[([^\s]+).*?fmaxReportId=(\d+)' 
+=======
 REGEX_PATTERN = r'\[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)'
+>>>>>>> Stashed changes:report_interation_extractor.py
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
