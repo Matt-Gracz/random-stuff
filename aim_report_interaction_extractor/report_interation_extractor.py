@@ -59,7 +59,7 @@ FILENAME_PATTERN = config["FILENAME_PATTERN"] # The substring of a filename that
 HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in headless mode
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 # Note to reader: Documentation for this regex pattern is at the bottom of this python file
-REGEX_PATTERN = r'\[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)'
+REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
@@ -106,7 +106,7 @@ def extract_report_interactions(file_paths):
                         date_str, time_str, timezone, report_id = matches.groups() # this extracts the raw data
                         print(date_str, time_str, timezone, report_id)
                         # Extract date and time components and store them in 
-                        # a MySQL 8.x friendly format.
+                        # a MySQL 8.x friendly format.     
                         report_date = datetime.strptime(date_str, '%d/%b/%Y').strftime('%Y-%m-%d')
                         report_time = datetime.strptime(time_str, '%H:%M:%S').strftime('%H:%M:%S')
                         report_timezone = timezone.strip() # lop off any whitespace; otherwise we just want it as a raw string
@@ -274,7 +274,7 @@ good performance and reliability of the data extraction, we employ a
 regex pattern to capture the datetime of when a given report was run,
 along with its corresponding report ID.  The regex pattern is:
 
-            \[([^:]+):([^s]+)\s([^\]]+).*?fmaxReportId=(\d+)
+            \[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)
 
 An important term in the regex world is 'capture group', which in a
 regular expression pattern is any text inside of a pair of parentheses.
@@ -303,14 +303,14 @@ many characters as it can that match the subpattern (i.e., characters
 that aren't colons) until it finds a colon.
 
                 Piece 2: Capturing the time
-                            :([^s]+)
+                            :([\S]+)
 Similarly to the date being preceded by an open bracket, we know the
 time will be differentiated from the date by a colon, so we place the
-colon outside of the parens to denote where to start capturing. ([^s]+) is
+colon outside of the parens to denote where to start capturing. ([\S]+) is
 exactly the same logic as above, but the negation is applying to whitespace
 instead of a colon.  This means the regex engine will capture everything
 that is not whitepspace until it hits a space, which demarcates where
-the timezone starts.
+the timezone starts. To be clear: \S captures all non-whitespace characters.
 
                 Piece 3: Capturing the timezone
                             \s([^\]]+)
