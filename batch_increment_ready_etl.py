@@ -21,6 +21,8 @@ preferred method of securing basic auth API credentials.
 # TODO: make this runnable from windows CLI
 
 """
+
+## TODO put these all in a config file
 SERVER = 'test' #prod -- TODO make this a CLI param
 END_POINT = f'https://uwisc{SERVER}.assetworks.cloud/ready/api/reporting/request?'
 
@@ -53,11 +55,10 @@ def get_credentials():
 	key = os.getenv(PRIVATE_KEY_ENV_VAR).encode()
 	encrypted_credentials = os.getenv(ENC_CREDS_VAR).encode()
 
-	# Create a CBC. A CBC is a chain of smaller ciphers each working on
-	# a contiguous subset of the plaintext.  Each cipher except the first
-	# constructs its internal private key as a vectorized output of the previous cipher.
-	# The concat'd ciphered/encrypted text blocks together make up the entire key.
-	#
+	# Create a CBC. A CBC is a chain of small ciphers each working on a contiguous
+	# subset of the plaintext.  Each cipher except the first constructs its internal
+	# private key as a vectorized output of the previous cipher. The concat'd ciphered
+	# (i.e., encrypted) text blocks together make up the entire key.
 	# Fernet official documentation isn't great; this webpage explains it all well:
 	# https://www.comparitech.com/blog/information-security/what-is-fernet/
 	cipher_suite = Fernet(key)
@@ -67,11 +68,11 @@ def get_credentials():
 	# text to the API call.
 	decrypted_credentials = cipher_suite.decrypt(encrypted_credentials).decode()
 
-	# Return the username/password. Decrypted, they are delimited by a colon
+	# Return the username/password. Once decrypted, they are delimited by a colon
 	return decrypted_credentials.split(':')
 USER,PW = get_credentials()
 
-# Since the date range can be massive, yielding the dates into a generator
+# Since the date range can be very large, yielding the dates into a generator
 # object to convert to a list later is faster than constructing the list here
 def gen_date_range(start_date_str, end_date_str):
     start_date = datetime.datetime.strptime(start_date_str, DEFAULT_DATE_FORMAT).date()
@@ -88,7 +89,7 @@ def get_today_as_string():
 def make_REST_call(url):
 	return requests.get(url, timeout=HTTP_TIMEOUT_TOLERANCE, auth=(USER,PW)).json()
 
-# Given the pieces, in order, in url_pieces, this constructs a call-able URL
+# Constructs an API URL out of param:value pairs
 def construct_url(params, values):
     # Use urlencode to handle parameter-value pairs and proper encoding
     # Depending on env it might use + to encode spaces.  This is OK, even
@@ -104,7 +105,8 @@ def construct_url(params, values):
 # TODO logging instead of printing
 
 
-# set only_open to False to get all requests in the range.  Can be markedly slower
+# set only_open to False to get all requests in the range; will be markedly
+# slower and more likely to time out
 def get_requests_from_str_range(start_date_str, end_date_str, only_open=True):
 	requests_to_return = []
 	for template in TEMPLATES:
@@ -197,7 +199,8 @@ def do_etl_for_today():
 	except:
 		pass #todo
 
-# Old unencrypted auth - saving it for now for future ideas
+# Old auth; it's unencrypted yet impossible for a bot to detect and very
+# difficult to decipher by hand: Saving it for now for future ideas
 def _____():
 	with open('._') as _:
 		return _.readline()[:20], (lambda ____: (____.seek(0), ____.readline()))(_)[1][20:]

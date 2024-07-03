@@ -13,11 +13,6 @@ The selected data types for a MySQL 8.x warehouse for the three fields we are ex
  -- report_timezone as a VARCHAR data type
  -- report_id as a SMALLINT data type [small int ranges up to 32,000ish which will be more than enough for the usual AiM report ID range]
 
-
-Issues:
-- 2024-06-04 :: logging in GUI mode doesn't print to the terminal. Not a big deal.  Backburner.
-
-
 Refer to here for the most up to date source files:
 https://github.com/Matt-Gracz/random-stuff/tree/main/aim_report_interaction_extractor
 '''
@@ -62,7 +57,30 @@ GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
+#logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
+
+# Create a custom logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set the base logging level
+
+# Create handlers
+console_handler = logging.StreamHandler()  # Handler for the console
+file_handler = logging.FileHandler('logfile.log')  # Handler for the log file
+
+# Set logging level for handlers
+console_handler.setLevel(logging.INFO)  # Set level for console output
+file_handler.setLevel(logging.DEBUG)  # Set level for file output
+
+# Create formatters and add them to the handlers
+console_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+console_handler.setFormatter(console_format)
+file_handler.setFormatter(file_format)
+
+# Add the handlers to the logger
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
 
 ### Functions:: There is one function per major conceptual operation this script goes through.  See below for details
 
@@ -76,15 +94,15 @@ def clear_output(output_file):
         try:
             if os.path.exists(output_file):
                 os.remove(output_file)
-                logging.info('Output file cleared.')
+                logger.info('Output file cleared.')
             else:
-                logging.info('Output file does not exist.')
+                logger.info('Output file does not exist.')
         except Exception as e:
-            logging.error(f'Error removing output file: {str(e)}')
+            logger.error(f'Error removing output file: {str(e)}')
             # Issue a question to the user todo put in GUI mgracz
             key = input('Issue removing the output file. Continue anyway? (Y/N): ')
             if key.lower() != 'y':
-                logging.info('Stopping the script.')
+                logger.info('Stopping the script.')
                 exit()
 
 ## Step 3: The actual ETL routine. Returns a pandas DataFrame containing one row per report interaction to extract from the input files.
@@ -113,14 +131,14 @@ def extract_report_interactions(file_paths):
                         # report_id doesn't need to be cast to int since we're saving to CSV
                         raw_interactions.append([report_date, report_time, report_timezone, report_id])
                         if DEBUG:
-                            logging.debug(f'Extracted: {report_date}, {report_time}, {report_id}')
+                            logger.debug(f'Extracted: {report_date}, {report_time}, {report_id}')
                         debug_loop += 1
                 except Exception as e:
-                    logging.error(f'Error processing line: {str(e)}\nTraceback: {traceback.format_exc()}')
+                    logger.error(f'Error processing line: {str(e)}\nTraceback: {traceback.format_exc()}')
     
     elapsed_time = str(timedelta(seconds=time.time() - start_time))
     # A note on some uncommon syntax in the formatted string: The signifier of a colon followed by a comma after a an int or float, like line_count:, forces commas into big numbers being printed. E.g., 10,000 instead of 10000
-    logging.info(f'Extracted {len(raw_interactions):,} report interactions from {line_count:,} lines in {elapsed_time}')
+    logger.info(f'Extracted {len(raw_interactions):,} report interactions from {line_count:,} lines in {elapsed_time}')
     return pd.DataFrame(raw_interactions, columns=['report_date', 'report_time', 'report_timezone', 'report_id'])
 
 ## Step 4: optionally persist the output to disk
@@ -130,11 +148,11 @@ def save_output_to_disk(data_frame, output_file):
             # index=False means it won't persist an extra column with integer indexes.  We don't need them.
             data_frame.to_csv(output_file, index=False)
             if os.path.exists(output_file):
-                logging.info('Output file successfully saved.')
+                logger.info('Output file successfully saved.')
             else:
-                logging.error('Error saving output file to disk.')
+                logger.error('Error saving output file to disk.')
         except Exception as e:
-            logging.error(f'Error saving CSV: {str(e)}, {traceback.format_exc()}')
+            logger.error(f'Error saving CSV: {str(e)}, {traceback.format_exc()}')
 
 ## Step 5: Optionally clear out the input log files, since there can be a lot of them.
 def clear_input_files(file_paths):
@@ -143,10 +161,10 @@ def clear_input_files(file_paths):
             try:
                 os.remove(file_path)
                 if os.path.exists(file_path):
-                    logging.warning(f'Failed to remove {file_path}')
+                    logger.warning(f'Failed to remove {file_path}')
             except Exception as e:
-                logging.error(f'Error removing file {file_path}: {str(e)}')
-        logging.info('Attempted to delete input files.')
+                logger.error(f'Error removing file {file_path}: {str(e)}')
+        logger.info('Attempted to delete input files.')
 
 # GUI
 # We use the tkinter library to develop the UI. It's mostly self explanatory.
@@ -246,7 +264,7 @@ def main():
         Call without args to run in headless mode.  Call with -u or --ui to the launch the GUI''')
     args = parser.parse_args() # fill the args variable with symbols based on the cmd line args
     mode = GUI_MODE if (args.ui == True) else HEADLESS_MODE # not necessary to compare to True but done for readability
-    logging.info(f'Running the script in {mode} mode at {datetime.now().strftime("%Y-%m-%d %H:%M")}')
+    logger.info(f'Running the script in {mode} mode at {datetime.now().strftime("%Y-%m-%d %H:%M")}')
 
     if mode == GUI_MODE: # true iff -u or --ui was passed in to the script
         # Fire up the UI
@@ -260,7 +278,7 @@ def main():
         report_interactions_df = extract_report_interactions(log_file_paths)
         save_output_to_disk(report_interactions_df, os.path.join(LOG_FILES_DIRECTORY, OUTPUT_FILE_NAME))
         clear_input_files(log_file_paths)
-        logging.info('Script execution completed.')
+        logger.info('Script execution completed.')
 
 if __name__ == '__main__':
     main()
@@ -268,6 +286,8 @@ if __name__ == '__main__':
 
 r'''
 ::::: Documentation of the employment of regex in this script :::::
+Read this if you don't know how Regex works and you're curious.
+Otherwise, no need to read this.
 
 Due to the textual nature of the logfile data, and therefore to ensure
 good performance and reliability of the data extraction, we employ a
