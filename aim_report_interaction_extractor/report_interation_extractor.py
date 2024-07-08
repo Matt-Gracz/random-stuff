@@ -59,7 +59,7 @@ REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
 # Setup logging
 #logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
 
-# Create a custom logger
+# Create a custom logger that prints both to console and a log file for this
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set the base logging level
 
@@ -122,7 +122,7 @@ def extract_report_interactions(file_paths):
                     matches = re.search(REGEX_PATTERN, line)
                     if matches and len(matches.groups()) == 4:
                         date_str, time_str, timezone, report_id = matches.groups() # this extracts the raw data
-                        print(date_str, time_str, timezone, report_id)
+                        logger.debug(f'Extracted raw data: {date_str}, {time_str}, {timezone}, {report_id}')
                         # Extract date and time components and store them in 
                         # a MySQL 8.x friendly format.     
                         report_date = datetime.strptime(date_str, '%d/%b/%Y').strftime('%Y-%m-%d')
@@ -137,7 +137,8 @@ def extract_report_interactions(file_paths):
                     logger.error(f'Error processing line: {str(e)}\nTraceback: {traceback.format_exc()}')
     
     elapsed_time = str(timedelta(seconds=time.time() - start_time))
-    # A note on some uncommon syntax in the formatted string: The signifier of a colon followed by a comma after a an int or float, like line_count:, forces commas into big numbers being printed. E.g., 10,000 instead of 10000
+    # A note on some uncommon syntax in the formatted string: The signifier of a colon followed by a comma after a
+    # an int or float, like line_count:, forces commas into big numbers being printed. E.g., 10,000 instead of 10000
     logger.info(f'Extracted {len(raw_interactions):,} report interactions from {line_count:,} lines in {elapsed_time}')
     return pd.DataFrame(raw_interactions, columns=['report_date', 'report_time', 'report_timezone', 'report_id'])
 

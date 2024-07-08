@@ -1,12 +1,15 @@
-::: AiM Report Interaction ETL Tool :::
+::::::								   ::::::
+:::::: AiM Report Interaction ETL Tool ::::::
+::::::								   ::::::
+
 Script Author: Matt Gracz
-Initially developed for UW-Madison in Spring of 2024
+Initially developed for UW-Madison in Summer of 2024
 
--There is a python script in WiscWarehouse/aim-report-extractor that, when executed, will look for AiM log files, load them, and extract report interaction data from them.
+-There is a python script in WiscWarehouse/aim-report-extractor that, when executed, will look for AiM server log files, load them, and extract information about how our users interact with AiM reports, which I am dubbing "report interaction data"
 
--A single instance of a piece of “report interaction data” represents a single run of any report from the AiM web interface.  It has 4 columns: report ID, date, time, and timezone.  Together they represent when a given report was run, down to the second.
+-A single piece of “report interaction data” represents a single run of any report from the AiM web interface.  It has 4 fields: report ID, date, time, and timezone.  Together they represent when a given report was run, down to the second.
 
--The ETL process then persists the report interaction data in a CSV file, with the column values formatted to be easily placed into a MySQL 8.x database, i.e., our data warehouse.
+-The ETL process persists the report interaction data in a CSV file, with the column values formatted to be easily placed into a MySQL 8.x database, i.e., our data warehouse.
 
 -Because this extracts info from server log files, this obviously will not detect users running reports from e.g., a Google Looker link or in Power BI, etc…  But it will catch any report run from the AiM web interface, BIRT, IQ, or otherwise.
 
