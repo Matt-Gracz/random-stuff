@@ -18,7 +18,7 @@ https://github.com/Matt-Gracz/random-stuff/tree/main/aim_report_interaction_extr
 '''
 
 # Imports
-import re   # we use regular expressions to process the logfile content; see bottom of the file for technical notes
+import re   # we use regular expressions to process the logfile content
 from datetime import datetime, date # datetime module to help us format for storage in MySQL 8.x
 import pandas as pd # needed for data manipulation and persistence operations
 import logging # for sending debug and info output to a standard output stream
@@ -63,7 +63,7 @@ GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
 
 # Setup logging
-# Create a custom logger that prints both to console and a log file for this
+# Create a custom logger that prints both to console and a log file
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set the base logging level
 
@@ -134,9 +134,9 @@ def extract_report_interactions(file_paths):
                     break
                 try:
                     line_count += 1
-                    matches = re.search(REGEX_PATTERN, line)
+                    matches = re.search(REGEX_PATTERN, line) # this extracts the raw data
                     if matches and len(matches.groups()) == 4:
-                        date_str, time_str, timezone, report_id = matches.groups() # this extracts the raw data
+                        date_str, time_str, timezone, report_id = matches.groups() 
                         logger.debug(f'Extracted raw data: {date_str}, {time_str}, {timezone}, {report_id}')
                         # Extract date and time components and store them in 
                         # a MySQL 8.x friendly format.     
