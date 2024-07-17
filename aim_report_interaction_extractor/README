@@ -5,13 +5,17 @@
 Script Author: Matt Gracz
 Initially developed for UW-Madison in Summer of 2024
 
--There is a python script in WiscWarehouse/aim-report-extractor that, when executed, will look for AiM server log files, load them, and extract information about how our users interact with AiM reports, which I am dubbing "report interaction data"
+-There is a python script in WiscWarehouse/aim-report-extractor that, when executed, will look for AiM server log files, load them, and extract information about how our users interact with AiM reports; for the purpose of clarity of I am dubbing that information "report interaction data".
 
--A single piece of “report interaction data” represents a single run of any report from the AiM web interface.  It has 4 fields: report ID, date, time, and timezone.  Together they represent when a given report was run, down to the second.
+-A single piece of “report interaction data” represents a single run of any report from the AiM web interface.  It has four fields: report ID, date, time, and timezone.  Together they represent when a given report was run, down to the second.
 
--The ETL process persists the report interaction data in a CSV file, with the column values formatted to be easily placed into a MySQL 8.x database, i.e., our data warehouse.
+-The script does not extract *who* ran the report.  That may be a feature in the future.
+
+-The script persists the report interaction data in a CSV file, with the column values formatted to be easily placed into a MySQL 8.x database, i.e., UW-Madison's data warehouse.
 
 -Because this extracts info from server log files, this obviously will not detect users running reports from e.g., a Google Looker link or in Power BI, etc…  But it will catch any report run from the AiM web interface, BIRT, IQ, or otherwise.
 
-Full documentation and to do list is here:
+-The regex_explanation.txt file is an English breakdown of how the most complicated part of the script works.
+
+-Full documentation and to-do list is here:
 https://docs.google.com/document/d/1eB8fFsrYRyQ59u-oBh5A7sLS1a2g93lyRxKwy2ErKUY

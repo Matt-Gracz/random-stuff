@@ -28,3 +28,5 @@ aim_report_interaction_extractor/__backup_logs__/localhost_access_log.2023-01-26
 aim_report_interaction_extractor/__backup_logs__/localhost_access_log.2023-01-27.txt
 aim_report_interaction_extractor/report_interactions.csv
 aim_report_interaction_extractor/logfile.log
+aim_report_interaction_extractor/localhost_access_log_test - Copy.txt
+aim_report_interaction_extractor/__backup_logs__/_report_interaction_etl_config.json

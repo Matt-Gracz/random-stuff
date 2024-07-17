@@ -19,9 +19,10 @@ https://github.com/Matt-Gracz/random-stuff/tree/main/aim_report_interaction_extr
 
 # Imports
 import re   # we use regular expressions to process the logfile content; see bottom of the file for technical notes
-from datetime import datetime # datetime module to help us format for storage in MySQL 8.x
+from datetime import datetime, date # datetime module to help us format for storage in MySQL 8.x
 import pandas as pd # needed for data manipulation and persistence operations
 import logging # for sending debug and info output to a standard output stream
+import enum # to support the policy for retrieving input files, see RETRIEVAL_POLICY below
 import os # to help with file handling
 import traceback # for error handling
 import json # to read in the config file
@@ -42,23 +43,26 @@ config = None
 with open('_report_interaction_etl_config.json', 'r') as config_file:
     config = json.load(config_file)
 DEBUG = config["DEBUG"] # Only enable when debugging, obviously
-DEBUG_LOOP_MAX = config["DEBUG_LOOP_MAX"] # max extraction loops to run before bailing manually
-CLEAR_OUTPUT_UPFRONT = config["CLEAR_OUTPUT_UPFRONT"] # remove old output file from last ETL run
-CLEAR_INPUT_AFTER_SUCCESS = config["CLEAR_INPUT_AFTER_SUCCESS"] # clear out the logs so they don't build up in the input dir
+DEBUG_LOOP_MAX = config["DEBUG_LOOP_MAX"] # Max extraction loops to run before bailing manually
+CLEAR_OUTPUT_UPFRONT = config["CLEAR_OUTPUT_UPFRONT"] # Remove old output file from last ETL run
+CLEAR_INPUT_AFTER_SUCCESS = config["CLEAR_INPUT_AFTER_SUCCESS"] # Clear out the logs so they don't build up in the input dir
 PERSIST_OUTPUT = config["PERSIST_OUTPUT"] # Save the output to disk; only set to false if debugging.
 LOG_FILES_DIRECTORY = config['LOG_FILES_DIRECTORY'] # Where the AiM log files are stored
+RETRIEVAL_POLICY = config['RETRIEVAL_POLICY'] # Options: ALL[all log files] or TODAY[only files modified today]
 OUTPUT_FILE_NAME = config["OUTPUT_FILE_NAME"] # Stores the ETL'd data
 FILENAME_PATTERN = config["FILENAME_PATTERN"] # The substring of a filename that denotes an AiM log file
+class RetrievalPolicy(enum.Enum):
+    ALL = "ALL"
+    TODAY = "TODAY"
+
 
 # Constants
 HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in headless mode
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
-# Note to reader: Documentation for this regex pattern is at the bottom of this python file
+# Note to reader: Documentation for this regex pattern is in 'regex_explanation.txt'
 REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
 
 # Setup logging
-#logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO, format='%(levelname)s: %(message)s')
-
 # Create a custom logger that prints both to console and a log file for this
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set the base logging level
@@ -85,8 +89,19 @@ logger.addHandler(file_handler)
 ### Functions:: There is one function per major conceptual operation this script goes through.  See below for details
 
 ## Step 1: Get a list of the full paths to all the input files to process
+##         The RETRIEVAL_POLICY config paramater controls whether the script
+##         ingests all log files in `directory` or only files modified today.
 def retrieve_log_file_paths(directory):
-    return [os.path.join(directory, f) for f in os.listdir(directory) if FILENAME_PATTERN in f]
+    today = date.today()
+    def _was_modified_today(file_path):
+        timestamp = os.path.getmtime(file_path)
+        return today == datetime.fromtimestamp(timestamp).date()
+    def _tautology(_=None):
+        return True
+    policy_today_only = RetrievalPolicy.TODAY.value
+    policy = _was_modified_today if RETRIEVAL_POLICY == policy_today_only else _tautology
+    return [os.path.join(directory, f) for f in os.listdir(directory)\
+            if FILENAME_PATTERN in f and policy(f)]
 
 ## Step 2: Optionally delete the old output file to ensure stale file deletion even if the ETL fails
 def clear_output(output_file):

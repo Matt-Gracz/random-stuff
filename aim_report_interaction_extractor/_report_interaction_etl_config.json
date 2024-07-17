@@ -5,6 +5,7 @@
     "CLEAR_INPUT_AFTER_SUCCESS": true,
     "PERSIST_OUTPUT": true,
     "LOG_FILES_DIRECTORY": "./__backup_logs__",
+    "RETRIEVAL_POLICY": "ALL",
     "OUTPUT_FILE_NAME": "report_interactions.csv",
     "FILENAME_PATTERN": "localhost_access_log"
 }
