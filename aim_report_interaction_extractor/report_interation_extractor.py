@@ -100,12 +100,13 @@ logger.addHandler(file_handler)
 def retrieve_log_file_paths(directory):
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
-    # Each hidden function maps to an input file retrieval policy.
+    # Each inner function maps to an input file retrieval policy.
     # _was_modified_today returns true iff a logfile was edited today
-    # _today_in_filename returns true iff today's date is in the filename
-    # _tautology returns true no matter what, in order to grab all logfiles  
+    # _today_in_filename  returns true iff today's date is in the filename
+    # _tautology          returns true no matter what, in order to grab all logfiles
+    #                     in the input directory
     def _was_modified_today(file_path):
-        timestamp = os.path.getmtime(file_path)
+        timestamp = os.path.getmtime(file_path) # get last modified time
         return today == datetime.fromtimestamp(timestamp).date()
     def _today_in_filename(file_path):
         return today_str in file_path
@@ -175,7 +176,7 @@ def extract_report_interactions(file_paths):
 def save_output_to_disk(data_frame, output_file):
     if PERSIST_OUTPUT:
         try:
-            # index=False means it won't persist an extra column with integer indexes.  We don't need them.
+            # index=False means we won't persist an extra column with integer indexes.  We don't need them.
             data_frame.to_csv(output_file, index=False)
             if os.path.exists(output_file):
                 logger.info('Output file successfully saved.')
@@ -213,7 +214,8 @@ class ETLApp:
             'PERSIST_OUTPUT': tk.BooleanVar(value=PERSIST_OUTPUT),
             'LOG_FILES_DIRECTORY': tk.StringVar(value=LOG_FILES_DIRECTORY),
             'OUTPUT_FILE_NAME': tk.StringVar(value=OUTPUT_FILE_NAME),
-            'FILENAME_PATTERN': tk.StringVar(value=FILENAME_PATTERN)
+            'FILENAME_PATTERN': tk.StringVar(value=FILENAME_PATTERN),
+            'RETRIEVAL_POLICY': tk.StringVar(value=RETRIEVAL_POLICY)
         }
 
         # Create UI Elements
@@ -229,6 +231,9 @@ class ETLApp:
             tk.Label(self.root, text=param).grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
             if isinstance(var, tk.BooleanVar):
                 tk.Checkbutton(self.root, variable=var).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
+            elif isinstance(var, tk.StringVar) and param == 'RETRIEVAL_POLICY':
+                options = [RetrievalPolicy.ALL.value, RetrievalPolicy.MODIFIED_TODAY.value, RetrievalPolicy.FILENAME_TODAY.value]
+                tk.OptionMenu(self.root, var, *options).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
             else:
                 tk.Entry(self.root, textvariable=var).grid(row=row, column=1, sticky=tk.W, padx=5, pady=5)
             row += 1
