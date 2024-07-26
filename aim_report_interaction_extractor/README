@@ -5,7 +5,7 @@
 Script Author: Matt Gracz
 Initially developed for UW-Madison in Summer of 2024
 
--There is a python script in WiscWarehouse/aim-report-extractor that, when executed, will look for AiM server log files, load them, and extract information about how our users interact with AiM reports; for the purpose of clarity of I am dubbing that information "report interaction data".
+-There is a python script that I am calling the AiM report interaction extractor that, when executed, will look for AiM server log files, load them, and extract information about how our users interact with AiM reports; for the purpose of clarity of I am dubbing that information "report interaction data".
 
 -A single piece of “report interaction data” represents a single run of any report from the AiM web interface.  It has four fields: report ID, date, time, and timezone.  Together they represent when a given report was run, down to the second.
 
