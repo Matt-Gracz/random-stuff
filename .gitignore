@@ -31,3 +31,5 @@ aim_report_interaction_extractor/logfile.log
 aim_report_interaction_extractor/localhost_access_log_test - Copy.txt
 aim_report_interaction_extractor/__backup_logs__/_report_interaction_etl_config.json
 aim_report_interaction_extractor/localhost_access_log-2024-07-18.txt
+build
+aim_report_interaction_extractor/report_interation_extractor.spec

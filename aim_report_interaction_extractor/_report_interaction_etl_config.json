@@ -1,11 +1,11 @@
 {
-    "DEBUG": true,
+    "DEBUG": false,
     "DEBUG_LOOP_MAX": 50,
     "CLEAR_OUTPUT_UPFRONT": true,
-    "CLEAR_INPUT_AFTER_SUCCESS": true,
+    "CLEAR_INPUT_AFTER_SUCCESS": false,
     "PERSIST_OUTPUT": true,
     "LOG_FILES_DIRECTORY": "./__backup_logs__",
-    "RETRIEVAL_POLICY": "ALL",
+    "RETRIEVAL_POLICY": "FILENAME_YESTERDAY",
     "OUTPUT_FILE_NAME": "report_interactions.csv",
     "FILENAME_PATTERN": "localhost_access_log"
 }

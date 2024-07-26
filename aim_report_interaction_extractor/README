@@ -19,3 +19,23 @@ Initially developed for UW-Madison in Summer of 2024
 
 -Full documentation and to-do list is here:
 https://docs.google.com/document/d/1eB8fFsrYRyQ59u-oBh5A7sLS1a2g93lyRxKwy2ErKUY
+
+-Defaut config values and explanations:
+{
+    "DEBUG": false // If set to true it will bail after DEBUG_LOOP_MAX number of 
+                   // iterations so in order to grab all the data set this to false
+    "DEBUG_LOOP_MAX": 50, // The number of ETL iterations to bail after when in debug
+                          // mode.  Useful for troubleshooting large files.
+    "CLEAR_OUTPUT_UPFRONT": true, // Deleting the most recent output file will maintain
+                                  // data integrity by ensuring stale output data doesn't
+                                  // get ingested by downstream ETL processes.
+    "CLEAR_INPUT_AFTER_SUCCESS": false, // Don't delete log files if ingested.
+    "PERSIST_OUTPUT": true, // Writes the output to a CSV instead of just memory
+    "LOG_FILES_DIRECTORY": "./__backup_logs__", // Path to the input files: this should change
+    "RETRIEVAL_POLICY": "FILENAME_YESTERDAY", // See documentation, but recommened to use
+                                              // FILENAME_YESTERDAY and run the script daily
+                                              // to get all of yetserday's interaction data
+    "OUTPUT_FILE_NAME": "report_interactions.csv", // feel free to change the file name
+    "FILENAME_PATTERN": "localhost_access_log" // don't touch this unless debugging the code itself
+}
+
