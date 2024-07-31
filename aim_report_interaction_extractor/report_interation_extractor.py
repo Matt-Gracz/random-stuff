@@ -19,7 +19,9 @@ https://github.com/Matt-Gracz/random-stuff/tree/main/aim_report_interaction_extr
 
 # Imports
 import re   # we use regular expressions to process the logfile content
-from datetime import datetime, date # datetime module to help us format for storage in MySQL 8.x
+from datetime import datetime, date, timedelta # datetime module to help us with 
+                                               # retrieving logfiles as well as data
+                                               # formatting for storage in MySQL 8.x
 import pandas as pd # needed for data manipulation and persistence operations
 import logging # for sending debug and info output to a standard output stream
 import enum # to support the policy for retrieving input files, see RETRIEVAL_POLICY below
@@ -28,8 +30,7 @@ import traceback # for error handling
 import json # to read in the config file
 
 ##### for performance testing this script
-import time 
-from datetime import timedelta
+import time
 #####
 
 ##### For GUI
@@ -55,11 +56,13 @@ FILENAME_PATTERN = config["FILENAME_PATTERN"] # The substring of a filename that
 # - ALL[all log files]
 # - MODIFIED_TODAY[only files modified today]
 # - FILENAME_TODAY[only files with today's date in their filename]
+# - FILENAME_YESTERDAY[only files with yesterday's date in their filename]
 RETRIEVAL_POLICY = config['RETRIEVAL_POLICY']
 class RetrievalPolicy(enum.Enum):
     ALL = "ALL"
     MODIFIED_TODAY = "MODIFIED_TODAY"
     FILENAME_TODAY = "FILENAME_TODAY"
+    FILENAME_YESTERDAY = "FILENAME_YESTERDAY"
 
 
 # Constants
@@ -95,14 +98,17 @@ logger.addHandler(file_handler)
 ### Functions:: There is one function per major conceptual operation this script goes through.  See below for details
 
 ## Step 1: Get a list of the full paths to all the input files to process
-##         The RETRIEVAL_POLICY config paramater controls whether the script
-##         ingests all log files in `directory` or only files modified today.
+##         The RETRIEVAL_POLICY config paramater controls which logfiles
+##         in `directory` are to be processed
 def retrieve_log_file_paths(directory):
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
+    yesterday = date.today() - timedelta(days=1)
+    yesterday_str = yesterday.strftime('%Y-%m-%d')
     # Each inner function maps to an input file retrieval policy.
     # _was_modified_today returns true iff a logfile was edited today
     # _today_in_filename  returns true iff today's date is in the filename
+    # _yest_in_filename   returns true iff yesterday's date is in the filename
     # _tautology          returns true no matter what, in order to grab all logfiles
     #                     in the input directory
     def _was_modified_today(file_path):
@@ -110,13 +116,20 @@ def retrieve_log_file_paths(directory):
         return today == datetime.fromtimestamp(timestamp).date()
     def _today_in_filename(file_path):
         return today_str in file_path
+    def _yest_in_filename(file_path):
+        return yesterday_str in file_path
     def _tautology(_=None):
         return True
     policy_map = {RetrievalPolicy.MODIFIED_TODAY.value : _was_modified_today,\
                   RetrievalPolicy.FILENAME_TODAY.value : _today_in_filename,\
+                  RetrievalPolicy.FILENAME_YESTERDAY.value: _yest_in_filename,\
                   RetrievalPolicy.ALL.value : _tautology}
-    return [os.path.join(directory, f) for f in os.listdir(directory)\
-            if FILENAME_PATTERN in f and policy_map[RETRIEVAL_POLICY](f)]
+    files_to_process = [os.path.join(directory, f) for f in os.listdir(directory)\
+                        if FILENAME_PATTERN in f and policy_map[RETRIEVAL_POLICY](f)]
+    logger.info('Files to process:')
+    for file in files_to_process:
+        logger.info(f'- {file}')
+    return files_to_process
 
 ## Step 2: Optionally delete the old output file to ensure stale file deletion even if the ETL fails
 def clear_output(output_file):
@@ -311,7 +324,7 @@ def main():
         log_file_paths = retrieve_log_file_paths(LOG_FILES_DIRECTORY)
         clear_output(os.path.join(LOG_FILES_DIRECTORY, OUTPUT_FILE_NAME))
         report_interactions_df = extract_report_interactions(log_file_paths)
-        save_output_to_disk(report_interactions_df, os.path.join(LOG_FILES_DIRECTORY, OUTPUT_FILE_NAME))
+        save_output_to_disk(report_interactions_df, OUTPUT_FILE_NAME)
         clear_input_files(log_file_paths)
         logger.info('Script execution completed.')
 

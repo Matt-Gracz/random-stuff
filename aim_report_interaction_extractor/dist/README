@@ -1,0 +1,6 @@
+To make this executable, I used the pyinstaller library.  Steps to reproduce this executable are:
+1. In a python console execute `pip install pyinstaller`
+2. Start a PowerShell session and navigate to the folder containing the python script
+3. In PowerShell, execute `pyinstaller --onefile .\report_interation_extractor.py`
+4. PyInstaller will create a build and dist dir like this one.  The dist dir should
+   now contain the executable.

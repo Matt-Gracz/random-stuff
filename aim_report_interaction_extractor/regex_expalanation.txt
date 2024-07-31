@@ -46,8 +46,7 @@ colon outside of the parens to denote where to start capturing. ([\S]+) is
 exactly the same logic as above, but the negation is applying to whitespace
 instead of a colon.  This means the regex engine will capture everything
 that is not whitepspace until it hits a space, which demarcates where
-the timezone starts. To be clear: \S captures means "non-whitespace
-characters".
+the timezone starts. To be clear: \S means "non-whitespace characters".
 
                 Piece 3: Capturing the timezone
                             \s([^\]]+)
@@ -77,4 +76,4 @@ i.e., the report ID we're after. \d stands for "digit" and the + again
 signifies to capture as many digits in a row as the regex engine can.
 It stops capturing once it hits a non-digit, i.e., the end of the report
 ID substring.  The rest of the line in the logfile is ignored, which is
-implied simply by the regex pattern terninating at this second capture group.
+implied simply by the regex pattern terninating at this last capture group.
