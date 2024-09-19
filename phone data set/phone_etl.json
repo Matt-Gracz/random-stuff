@@ -1,0 +1,7 @@
+{   
+    "host" : "wisc-db.cjpmortiakud.us-east-2.rds.amazonaws.com",
+    "user" : "mgraczprod",
+    "password" : "BDz3rCh80Sdqa1aYBMtuhS",
+    "database" : "wiscprod",
+    "query" : "SELECT sec.login AS aim_login_aim ,sec.employee_id AS emp_id_aim ,CONCAT(emp.fname, ' ', emp.lname) AS name_aim ,cont.cell_phone AS cell_phone_aim ,cont.o_phone AS office_phone_aim ,cont.h_phone AS home_phone_aim  FROM ae_s_sec_c sec LEFT JOIN ae_h_emp_cont_data cont ON  sec.multitenant_id=cont.multitenant_id AND sec.employee_id=cont.shop_person LEFT JOIN ae_h_emp_e emp ON  cont.multitenant_id=emp.multitenant_id AND cont.shop_person=emp.shop_person  WHERE sec.active = 'Y'"
+}
