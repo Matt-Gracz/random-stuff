@@ -69,7 +69,12 @@ class RetrievalPolicy(enum.Enum):
 HEADLESS_MODE = 'headless' # Option 1: run this script without a GUI, i.e., in headless mode
 GUI_MODE = 'GUI' # Option 2: run this script with the GUI, i.e., in GUI mode
 # Note to reader: Documentation for this regex pattern is in 'regex_explanation.txt'
-REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
+REPORT_DATE_SUBPATTERN = r'\[([^:]+)'
+REPORT_TIME_SUBPATTERN = r':([\S]+)'
+REPORT_TZONE_SUBPATTERN = r'\s([^\]]+)'
+REPORT_ID_SUBPATTERN = r'.*?fmaxReportId=(\d+)'
+#REGEX_PATTERN = r'\[([^:]+):([\S]+)\s([^\]]+).*?fmaxReportId=(\d+)'
+REGEX_PATTERN = REPORT_DATE_SUBPATTERN + REPORT_TIME_SUBPATTERN + REPORT_TZONE_SUBPATTERN + REPORT_ID_SUBPATTERN
 
 # Setup logging
 # Create a custom logger that prints both to console and a log file

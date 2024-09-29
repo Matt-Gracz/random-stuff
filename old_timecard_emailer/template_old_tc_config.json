@@ -1,0 +1,9 @@
+{
+	"key" : "",
+	"encrypted_username" : "",
+	"encrypted_password" : "",
+	"host" : "",
+	"database" : "",
+	"shopSupeEmailMap" : { "shop1": ["supe1@school.edu", "supe2@school.edu"], "shop2" : ["supe3@school.com"]}
+
+}

@@ -33,3 +33,4 @@ aim_report_interaction_extractor/__backup_logs__/_report_interaction_etl_config.
 aim_report_interaction_extractor/localhost_access_log-2024-07-18.txt
 build
 aim_report_interaction_extractor/report_interation_extractor.spec
+old_timecard_emailer/_old_tc_config.json

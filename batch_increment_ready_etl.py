@@ -72,6 +72,7 @@ def get_credentials():
 	return decrypted_credentials.split(':')
 USER,PW = get_credentials()
 
+### DATE MANIPULATION ####
 # Since the date range can be very large, yielding the dates into a generator
 # object to convert to a list later is faster than constructing the list here
 def gen_date_range(start_date_str, end_date_str):
@@ -81,13 +82,27 @@ def gen_date_range(start_date_str, end_date_str):
     for n in range(int((end_date - start_date).days) + 1):
         yield (start_date + datetime.timedelta(n)).strftime(DEFAULT_DATE_FORMAT)
 
-# return a string formatted with YYYY-MM-DD that represents today's date 
+# return a string formatted with YYYY-MM-DD that represents the inputted date
+# E.g., get_day_as_string(datetime.date(2024, 9, 19))
+def get_day_as_string(in_date):
+	return datetime.datetime.strftime(in_date, DEFAULT_DATE_FORMAT)
+# Convenience function
 def get_today_as_string():
-	return datetime.datetime.strftime(datetime.datetime.now(), DEFAULT_DATE_FORMAT)
+	return get_day_as_string(datetime.datetime.now())
 
+### API UTILITY FUNCTIONS ####
 # Make a generic rest call to the ReADY SERVER
-def make_REST_call(url):
-	return requests.get(url, timeout=HTTP_TIMEOUT_TOLERANCE, auth=(USER,PW)).json()
+# Return the list of requests as a json structure
+def make_REST_call(url, retries=3):
+	ready_requests = {}
+	try:
+		ready_requests = requests.get(url, timeout=HTTP_TIMEOUT_TOLERANCE, auth=(USER,PW)).json()
+	except:
+		if retries > 1:
+			# todo log that this errored out after all retries
+			return make_REST_call(url, retries-1)
+	return ready_requests
+
 
 # Constructs an API URL out of param:value pairs
 def construct_url(params, values):
@@ -103,7 +118,6 @@ def construct_url(params, values):
     return f'{END_POINT}{param_part}'
 
 # TODO logging instead of printing
-
 
 # set only_open to False to get all requests in the range; will be markedly
 # slower and more likely to time out
@@ -125,7 +139,7 @@ def get_requests_from_str_range(start_date_str, end_date_str, only_open=True):
 			print(f'Something went wrong with {template} for {(start_date_str, end_date_str)}') #TODO - logging
 			print(f'Error: {str(e)}')
 		print(f'Done with {template}.  Num requests:{len(requests_to_return)}')
-	return requests_to_return
+	return requests_to_return 
 
 
 def get_requests_day_by_day(start_date_str, end_date_str, only_open=True):
@@ -133,18 +147,22 @@ def get_requests_day_by_day(start_date_str, end_date_str, only_open=True):
 			for date in gen_date_range(start_date_str, end_date_str)\
 			for request in get_requests_from_str_range(date, date, only_open=only_open)]
 
-
 def get_todays_open_requests():
 	today_string = get_today_as_string() 
 	# be exlicit about only getting open requests
 	return get_requests_from_str_range(today_string, today_string, only_open=True)
 
+def get_yesterdays_open_ids():
+	pd.read_csv(OPEN_REQUEST_IDS_FNAME).squeeze()
+
 # Save request ids to disk.  We will typically read this later as yesterday's open requests to compare
 # against the next day's open ReADY requests when updating our daily requests.  This operation
 # overwrites the last file; it doesn't append the requests to yesterday's as that would introduce
 # a rolling unncessary duplication of requests shared between the days, every time this is run.
-def persist_request_ids(iterable_requests, file_name):
+def persist_request_ids(iterable_requests, file_name, num_tries=3):
 	pd.DataFrame([request[REQUEST_ID] for request in iterable_requests]).to_csv(file_name, header=None)
+
+### MAIN FUNCTIONALITY ###
 
 # Extracts all of today's open requests and requests closed today and save it to a CSV
 # to be processed into DB tables later.
@@ -152,7 +170,7 @@ def do_etl_for_today():
 	# get yesterday's open requests' IDs.
 	# squeeze converts it from a 2D dataframe to a 1D data series.
 	# Makes it easer to compute set difference later
-	yesterdays_open_ids = pd.read_csv(OPEN_REQUEST_IDS_FNAME).squeeze()
+	yesterdays_open_ids = get_yesterdays_open_ids()
 
 	# Reqeusts that are open can change, so we need to grab all the currently open
 	# requests for consideration for UPSERT into whatever DB it ultimately lands in
@@ -161,13 +179,14 @@ def do_etl_for_today():
 	todays_open_ids = [request[REQUEST_ID] for request in todays_open]
 
 	# The only closed requests that may have changed are ones that closed today.  In order to
-	# find those, we compute set difference to find requests open yesterday but not today.
+	# find those, we compute set difference between yesterday and today's open requests.  This
+	# effectively finds requests open yesterday but not today, i.e., closed today.
 	closed_today_ids_set = set(yesterdays_open_ids) - set(todays_open_ids)
 	closed_today_ids = list(closed_today_ids_set) # convert to list for operations that come later
 
 	# Extract reqeusts that were closed today, one by one.  Normally going request-by-request is
 	# slow, but usually there aren't more than 50 requests that get closed on any particular day,
-	# which is an acceptable volume.
+	# here at UW-Madison, which is an acceptable volume.
 	closed_today = []
 	for request_id in closed_today_ids:
 		try:
@@ -176,7 +195,8 @@ def do_etl_for_today():
 			ready_request = ready_requests[0]
 			closed_today.append(ready_request)
 		except Exception as e:
-			pass #TODO : error handling
+			closed_today = []
+			#TODO : log this specific error with some structure so we can parse logs for failed attempts
 
 	all_today_requests = todays_open + closed_today
 	todays_file_name = f'{COMMON_FIELDS_CSV_BASE_NAME}-{get_today_as_string()}.csv'
@@ -195,13 +215,8 @@ def do_etl_for_today():
 		if is_saved_correctly:
 			persist_request_ids(todays_open_ids, OPEN_REQUEST_IDS_FNAME)
 		else:
-			pass #todo log something went wrong and, todo later: try again?
+			#todo log something went wrong
+			if num_tries > 1:
+
 	except:
 		pass #todo
-
-# Old auth; it's unencrypted yet impossible for a bot to detect and very
-# difficult to decipher by hand: Saving it for now for future ideas
-def _____():
-	with open('._') as _:
-		return _.readline()[:20], (lambda ____: (____.seek(0), ____.readline()))(_)[1][20:]
-____,___ = _____()[::-1]
