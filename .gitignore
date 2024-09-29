@@ -34,3 +34,6 @@ aim_report_interaction_extractor/localhost_access_log-2024-07-18.txt
 build
 aim_report_interaction_extractor/report_interation_extractor.spec
 old_timecard_emailer/_old_tc_config.json
+reapi_hub/reapi_hub_settings.json
+reapi_hub/reapi_hub_templates.json
+reapi_hub/reapi_hub_app_log.txt
