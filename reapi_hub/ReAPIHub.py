@@ -226,167 +226,158 @@ def resetCredentials():
         root.mainloop()
 
 def openMainWindow():
-    """Opens the main application window."""
-    mainWindow = tk.Tk()
-    mainWindow.title(f"{PROGRAM_NAME} - Main Application")
-    mainWindow.geometry("600x400")
-    tk.Label(mainWindow, text="Main Application Window").grid(row=0, column=0, padx=10, pady=5)
-    tk.Button(mainWindow, text="Open Settings...", command=openSettingsWindow).grid(row=0, column=1, padx=10, pady=5)
-    tk.Button(mainWindow, text="Quit Application", command=mainWindow.destroy).grid(row=0, column=2, padx=10, pady=5)
-    mainWindow.mainloop()
-def open_main_window():
     """Main application window."""
-    def fetch_data():
+    def fetchData():
         """Fetches data based on the parameter configuration."""
         # Collect the selected parameters based on the checkboxes
-        selected_params = {}
-        for param, checkbox_var in checkbox_vars.items():
-            if checkbox_var.get():  # Only include params with checked checkboxes
-                selected_params[param] = param_entries[param].get()
+        selectedParams = {}
+        for param, checkboxVar in checkboxVars.items():
+            if checkboxVar.get():  # Only include params with checked checkboxes
+                selectedParams[param] = paramEntries[param].get()
 
-        logger.info(f"Fetching data with params: {selected_params}")
+        logger.info(f"Fetching data with params: {selectedParams}")
         # Simulate fetching data
-        fetch_result = [{"requestId": "1234", "template": "Heating Plant Request", "dateCreated": "2024-01-12",
+        fetchResult = [{"requestId": "1234", "template": "Heating Plant Request", "dateCreated": "2024-01-12",
                          "title": "FIX A SINK", "closed": "false", "requestor": "dude@a.com"},
                         {"requestId": "43353", "template": "Digger Request", "dateCreated": "2022-05-15",
                          "title": "do something else", "closed": "true", "requestor": "otherGuy@where.com"}]
 
         # Limit to 100 entries
-        fetch_result = fetch_result[:100]
+        fetchResult = fetchResult[:100]
         # Display the results in the table
-        update_results_table(fetch_result)
+        updateResultsTable(fetchResult)
     
-    def update_results_table(data):
+    def updateResultsTable(data):
         """Populates the results table with fetched data."""
-        for row in results_table.get_children():
-            results_table.delete(row)
+        for row in resultsTable.get_children():
+            resultsTable.delete(row)
         
-        for i, row_data in enumerate(data):
-            results_table.insert("", "end", values=list(row_data.values()))
+        for i, rowData in enumerate(data):
+            resultsTable.insert("", "end", values=list(rowData.values()))
     
-    def persist_fetched_data():
+    def persistFetchedData():
         """Persist fetched data (stub function)."""
         logger.info("Persisting fetched data to disk.")
         # Here would be the logic to save the fetched data
 
-    def persist_params():
+    def persistParams():
         """Save the current parameter configuration."""
-        save_param_config()
+        saveParamConfig()
 
-    def load_params():
+    def loadParams():
         """Load parameter configuration from a file."""
-        load_param_config()
+        loadParamConfig()
         # Update the UI with loaded params
-        for param, value in param_config.items():
-            param_entries[param].delete(0, tk.END)
-            param_entries[param].insert(0, value)
+        for param, value in paramConfig.items():
+            paramEntries[param].delete(0, tk.END)
+            paramEntries[param].insert(0, value)
 
-    def clear_params():
+    def clearParams():
         """Clear all parameter entries and checkboxes."""
-        for param_entry in param_entries.values():
-            param_entry.delete(0, tk.END)
-        for checkbox_var in checkbox_vars.values():
-            checkbox_var.set(0)
+        for paramEntry in paramEntries.values():
+            paramEntry.delete(0, tk.END)
+        for checkboxVar in checkboxVars.values():
+            checkboxVar.set(0)
 
-    def open_custom_field_selector():
+    def openCustomFieldSelector():
         """Opens the Custom Field Selector window (stub)."""
-        custom_field_window = tk.Toplevel(main_window)
-        custom_field_window.title("Custom Field Selector")
-        tk.Label(custom_field_window, text="This is the Custom Field Selector window (stub)").pack()
+        customFieldWindow = tk.Toplevel(mainWindow)
+        customFieldWindow.title("Custom Field Selector")
+        tk.Label(customFieldWindow, text="This is the Custom Field Selector window (stub)").pack()
 
-    def open_job_manager():
+    def openJobManager():
         """Opens the Job Manager window (stub)."""
-        job_manager_window = tk.Toplevel(main_window)
-        job_manager_window.title("Job Manager")
-        tk.Label(job_manager_window, text="This is the Job Manager window (stub)").pack()
+        jobManagerWindow = tk.Toplevel(mainWindow)
+        jobManagerWindow.title("Job Manager")
+        tk.Label(jobManagerWindow, text="This is the Job Manager window (stub)").pack()
 
     # Main window setup
-    main_window = tk.Tk()
-    main_window.title("ReAPIHub - Main Application")
-    main_window.geometry("800x600")
+    mainWindow = tk.Tk()
+    mainWindow.title("ReAPIHub - Main Application")
+    mainWindow.geometry("800x600")
 
     # Create the menu bar
-    menubar = tk.Menu(main_window)
-    window_menu = tk.Menu(menubar, tearoff=0)
-    window_menu.add_command(label="Open Settings...")
-    window_menu.add_command(label="Open Template Manager...")
-    window_menu.add_separator()
-    window_menu.add_command(label="Close Main Application", command=main_window.quit)
-    menubar.add_cascade(label="Window", menu=window_menu)
-    main_window.config(menu=menubar)
+    menubar = tk.Menu(mainWindow)
+    windowMenu = tk.Menu(menubar, tearoff=0)
+    windowMenu.add_command(label="Open Settings...")
+    windowMenu.add_command(label="Open Template Manager...")
+    windowMenu.add_separator()
+    windowMenu.add_command(label="Close Main Application", command=mainWindow.quit)
+    menubar.add_cascade(label="Window", menu=windowMenu)
+    mainWindow.config(menu=menubar)
 
     # API Tools section
-    api_tools_frame = tk.Frame(main_window)
-    api_tools_frame.pack(side=tk.LEFT, padx=10, pady=10)
+    apiToolsFrame = tk.Frame(mainWindow)
+    apiToolsFrame.pack(side=tk.LEFT, padx=10, pady=10)
 
     # Parameter section with checkboxes and entries
-    param_names = ["closed", "stuck", "startDate", "endDate", "template", "limit", "title", "requestor"]
-    param_entries = {}
-    checkbox_vars = {}
+    paramNames = ["closed", "stuck", "startDate", "endDate", "template", "limit", "title", "requestor"]
+    paramEntries = {}
+    checkboxVars = {}
 
-    for i, param in enumerate(param_names):
-        checkbox_vars[param] = tk.IntVar()
-        checkbox = tk.Checkbutton(api_tools_frame, variable=checkbox_vars[param])
+    for i, param in enumerate(paramNames):
+        checkboxVars[param] = tk.IntVar()
+        checkbox = tk.Checkbutton(apiToolsFrame, variable=checkboxVars[param])
         checkbox.grid(row=i, column=0, sticky="w")
-        label = tk.Label(api_tools_frame, text=param)
+        label = tk.Label(apiToolsFrame, text=param)
         label.grid(row=i, column=1, padx=5)
-        param_entry = tk.Entry(api_tools_frame)
-        param_entry.grid(row=i, column=2, padx=5)
-        param_entries[param] = param_entry
+        paramEntry = tk.Entry(apiToolsFrame)
+        paramEntry.grid(row=i, column=2, padx=5)
+        paramEntries[param] = paramEntry
 
     # API Tools action buttons
-    fetch_data_button = tk.Button(api_tools_frame, text="Fetch Data", command=fetch_data, bg="purple")
-    fetch_data_button.grid(row=0, column=3, padx=10, pady=5)
+    fetchDataButton = tk.Button(apiToolsFrame, text="Fetch Data", command=fetchData, bg="purple")
+    fetchDataButton.grid(row=0, column=3, padx=10, pady=5)
 
-    persist_fetched_data_button = tk.Button(api_tools_frame, text="Persist Fetched Data", command=persist_fetched_data, bg="green")
-    persist_fetched_data_button.grid(row=1, column=3, padx=10, pady=5)
+    persistFetchedDataButton = tk.Button(apiToolsFrame, text="Persist Fetched Data", command=persistFetchedData, bg="green")
+    persistFetchedDataButton.grid(row=1, column=3, padx=10, pady=5)
 
-    custom_field_selector_button = tk.Button(api_tools_frame, text="Custom Field Selector...", command=open_custom_field_selector, bg="cyan")
-    custom_field_selector_button.grid(row=2, column=3, padx=10, pady=5)
+    customFieldSelectorButton = tk.Button(apiToolsFrame, text="Custom Field Selector...", command=openCustomFieldSelector, bg="cyan")
+    customFieldSelectorButton.grid(row=2, column=3, padx=10, pady=5)
 
-    persist_field_selection_button = tk.Button(api_tools_frame, text="Persist Field Selection", command=lambda: logger.info("Persisting field selection"), bg="blue")
-    persist_field_selection_button.grid(row=3, column=3, padx=10, pady=5)
+    persistFieldSelectionButton = tk.Button(apiToolsFrame, text="Persist Field Selection", command=lambda: logger.info("Persisting field selection"), bg="blue")
+    persistFieldSelectionButton.grid(row=3, column=3, padx=10, pady=5)
 
-    open_job_manager_button = tk.Button(api_tools_frame, text="Open Job Manager...", command=open_job_manager, bg="orange")
-    open_job_manager_button.grid(row=4, column=3, padx=10, pady=5)
+    openJobManagerButton = tk.Button(apiToolsFrame, text="Open Job Manager...", command=openJobManager, bg="orange")
+    openJobManagerButton.grid(row=4, column=3, padx=10, pady=5)
 
     # Buttons to persist/load params
-    persist_params_button = tk.Button(api_tools_frame, text="Persist Params", command=persist_params)
-    persist_params_button.grid(row=5, column=0, padx=5, pady=5)
+    persistParamsButton = tk.Button(apiToolsFrame, text="Persist Params", command=persistParams)
+    persistParamsButton.grid(row=5, column=0, padx=5, pady=5)
 
-    load_params_button = tk.Button(api_tools_frame, text="Load Params", command=load_params)
-    load_params_button.grid(row=5, column=1, padx=5, pady=5)
+    loadParamsButton = tk.Button(apiToolsFrame, text="Load Params", command=loadParams)
+    loadParamsButton.grid(row=5, column=1, padx=5, pady=5)
 
-    clear_params_button = tk.Button(api_tools_frame, text="Clear Params", command=clear_params)
-    clear_params_button.grid(row=5, column=2, padx=5, pady=5)
+    clearParamsButton = tk.Button(apiToolsFrame, text="Clear Params", command=clearParams)
+    clearParamsButton.grid(row=5, column=2, padx=5, pady=5)
 
     # Results section
-    results_frame = tk.Frame(main_window)
-    results_frame.pack(side=tk.TOP, padx=10, pady=10, fill=tk.BOTH, expand=True)
+    resultsFrame = tk.Frame(mainWindow)
+    resultsFrame.pack(side=tk.TOP, padx=10, pady=10, fill=tk.BOTH, expand=True)
 
     columns = ["requestId", "template", "dateCreated", "title", "closed", "requestor"]
-    results_table = ttk.Treeview(results_frame, columns=columns, show="headings")
+    resultsTable = ttk.Treeview(resultsFrame, columns=columns, show="headings")
     for col in columns:
-        results_table.heading(col, text=col)
-        results_table.column(col, width=120)
-    results_table.pack(fill=tk.BOTH, expand=True)
+        resultsTable.heading(col, text=col)
+        resultsTable.column(col, width=120)
+    resultsTable.pack(fill=tk.BOTH, expand=True)
 
     # Logging console (using ScrolledText)
-    console_frame = tk.Frame(main_window)
-    console_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
-    log_console = ScrolledText(console_frame, height=5)
-    log_console.pack(fill=tk.BOTH, expand=True)
+    consoleFrame = tk.Frame(mainWindow)
+    consoleFrame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+    logConsole = ScrolledText(consoleFrame, height=5)
+    logConsole.pack(fill=tk.BOTH, expand=True)
 
     # Stub for logging to console
-    def log_to_console(message):
-        log_console.insert(tk.END, f"{message}\n")
-        log_console.see(tk.END)  # Auto-scroll to the bottom
+    def logToConsole(message):
+        logConsole.insert(tk.END, f"{message}\n")
+        logConsole.see(tk.END)  # Auto-scroll to the bottom
 
     # Example of using the logging to console
     logger.info("Main application window loaded.")
-    log_to_console("ReAPIHub Log [INFO] Main application window loaded.")
+    logToConsole("ReAPIHub Log [INFO] Main application window loaded.")
 
-    main_window.mainloop()
+    mainWindow.mainloop()
 
 def saveSettings():
     """Saves the settings to a file."""
