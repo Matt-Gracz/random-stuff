@@ -5,6 +5,8 @@ import keyring
 import json
 import os
 import logging
+import urllib
+import requests
 
 # Global variables for the program
 PROGRAM_NAME = "ReAPI Hub"
@@ -31,6 +33,9 @@ logger.setLevel(logging.INFO)  # This will be set dynamically from settings
 log_handler = logging.FileHandler("reapi_hub_app_log.txt")
 log_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 logger.addHandler(log_handler)
+
+# Set columns for UI preview of fetched ready reqeust data
+preview_columns = ["requestId", "template", "dateCreated", "title", "closed", "requestor"]
 
 # Global for storing the parameter configuration (to be persisted/loaded)
 param_config = {
@@ -59,11 +64,17 @@ def load_param_config():
         param_config = json.load(f)
     logger.info("Parameter configuration loaded.")
 
+def get_creds():
+    return keyring.get_password(PROGRAM_NAME, "username"), keyring.get_password(PROGRAM_NAME, "password")
+
 # In-memory dictionary to store templates and their values
 templates = {}
 
 # In-memory settings
 settings = DEFAULT_SETTINGS.copy()
+
+# In-mwemory store of most recent API call
+in_memory_requests = {}
 
 class CredentialManager:
     """Manages user credentials for the application."""
@@ -100,8 +111,7 @@ class CredentialManager:
 
     def checkExistingCredentials(self):
         """Checks if credentials already exist."""
-        username = keyring.get_password(PROGRAM_NAME, "username")
-        password = keyring.get_password(PROGRAM_NAME, "password")
+        username, password = get_creds()
         if username or password:
             self.unpersistButton.config(state=tk.NORMAL)
 
@@ -227,6 +237,7 @@ def resetCredentials():
 
 def openMainWindow():
     """Main application window."""
+
     def fetchData():
         """Fetches data based on the parameter configuration."""
         # Collect the selected parameters based on the checkboxes
@@ -234,19 +245,37 @@ def openMainWindow():
         for param, checkboxVar in checkboxVars.items():
             if checkboxVar.get():  # Only include params with checked checkboxes
                 selectedParams[param] = paramEntries[param].get()
+        param_url_component = urllib.parse.urlencode(selectedParams)
+        # +settings['serverName'] may not be do-able/feasible for all campuses
+        full_api_url = settings['endpoint']+param_url_component
+        raw_data = {}
+        for i in range(settings['numberOfRetries']):
+            try:
+                response = requests.get(
+                                        full_api_url,
+                                        timeout=settings['fetchTimeout'],
+                                        auth=get_creds()
+                                        )
+                logger.info(f'Fetch successful - result is {response.status_code}')
+                status = response.status_code
+                if 200 <= status <= 399 and response.headers['Content-type'] == 'application/json':
+                    raw_data = response.json()
+                # Limit GUI to 100 entries and just the template-agnostic columns
+                preview_entries = [ {key:entry[key]} for key in preview_columns for entry in raw_data[:100] ]
+                # Display the preview in the results table
+                updateResultsTable(preview_entries)
 
-        logger.info(f"Fetching data with params: {selectedParams}")
-        # Simulate fetching data
-        fetchResult = [{"requestId": "1234", "template": "Heating Plant Request", "dateCreated": "2024-01-12",
-                         "title": "FIX A SINK", "closed": "false", "requestor": "dude@a.com"},
-                        {"requestId": "43353", "template": "Digger Request", "dateCreated": "2022-05-15",
-                         "title": "do something else", "closed": "true", "requestor": "otherGuy@where.com"}]
 
-        # Limit to 100 entries
-        fetchResult = fetchResult[:100]
-        # Display the results in the table
-        updateResultsTable(fetchResult)
-    
+                # # Simulate fetching data
+                # fetchResult = [{"requestId": "1234", "template": "Heating Plant Request", "dateCreated": "2024-01-12",
+                #                  "title": "FIX A SINK", "closed": "false", "requestor": "dude@a.com"},
+                #                 {"requestId": "43353", "template": "Digger Request", "dateCreated": "2022-05-15",
+                #                  "title": "do something else", "closed": "true", "requestor": "otherGuy@where.com"}]
+                global in_memory_requests
+                in_memory_requests = raw_data
+            except:
+                logger.error(f'Error fetching for url {full_api_url} on try {i}')
+        
     def updateResultsTable(data):
         """Populates the results table with fetched data."""
         for row in resultsTable.get_children():
@@ -294,13 +323,13 @@ def openMainWindow():
     # Main window setup
     mainWindow = tk.Tk()
     mainWindow.title("ReAPIHub - Main Application")
-    mainWindow.geometry("800x600")
+    mainWindow.geometry("1400x350")
 
     # Create the menu bar
     menubar = tk.Menu(mainWindow)
     windowMenu = tk.Menu(menubar, tearoff=0)
-    windowMenu.add_command(label="Open Settings...")
-    windowMenu.add_command(label="Open Template Manager...")
+    windowMenu.add_command(label="Open Settings...", command=openSettingsWindow)
+    windowMenu.add_command(label="Open Template Manager...", command=openTemplateManager)
     windowMenu.add_separator()
     windowMenu.add_command(label="Close Main Application", command=mainWindow.quit)
     menubar.add_cascade(label="Window", menu=windowMenu)
@@ -308,7 +337,7 @@ def openMainWindow():
 
     # API Tools section
     apiToolsFrame = tk.Frame(mainWindow)
-    apiToolsFrame.pack(side=tk.LEFT, padx=10, pady=10)
+    apiToolsFrame.pack(side=tk.LEFT, anchor="nw")#padx=10, pady=10)
 
     # Parameter section with checkboxes and entries
     paramNames = ["closed", "stuck", "startDate", "endDate", "template", "limit", "title", "requestor"]
@@ -343,20 +372,19 @@ def openMainWindow():
 
     # Buttons to persist/load params
     persistParamsButton = tk.Button(apiToolsFrame, text="Persist Params", command=persistParams)
-    persistParamsButton.grid(row=5, column=0, padx=5, pady=5)
+    persistParamsButton.grid(row=10, column=0, padx=5, pady=5)
 
     loadParamsButton = tk.Button(apiToolsFrame, text="Load Params", command=loadParams)
-    loadParamsButton.grid(row=5, column=1, padx=5, pady=5)
+    loadParamsButton.grid(row=10, column=1, padx=5, pady=5)
 
     clearParamsButton = tk.Button(apiToolsFrame, text="Clear Params", command=clearParams)
-    clearParamsButton.grid(row=5, column=2, padx=5, pady=5)
+    clearParamsButton.grid(row=10, column=2, padx=5, pady=5)
 
     # Results section
     resultsFrame = tk.Frame(mainWindow)
     resultsFrame.pack(side=tk.TOP, padx=10, pady=10, fill=tk.BOTH, expand=True)
 
-    columns = ["requestId", "template", "dateCreated", "title", "closed", "requestor"]
-    resultsTable = ttk.Treeview(resultsFrame, columns=columns, show="headings")
+    resultsTable = ttk.Treeview(resultsFrame, columns=preview_columns, show="headings")
     for col in columns:
         resultsTable.heading(col, text=col)
         resultsTable.column(col, width=120)
